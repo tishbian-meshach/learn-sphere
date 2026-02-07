@@ -59,7 +59,7 @@ export async function GET(request: NextRequest) {
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
-    const { userId, courseId } = body;
+    let { userId, courseId } = body;
 
     // Get current user
     const currentUser = await getCurrentUser(request);
@@ -68,17 +68,59 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    // Instructors can only enroll learners in their own courses
-    if (currentUser.role === 'INSTRUCTOR') {
-      const course = await prisma.course.findUnique({
-        where: { id: courseId },
-        select: { instructorId: true },
+    // If no userId provided, use current user (self-enrollment)
+    if (!userId) {
+      userId = currentUser.id;
+    }
+
+    // Regular users can only enroll themselves
+    if (currentUser.role === 'LEARNER' && userId !== currentUser.id) {
+      return NextResponse.json(
+        { error: 'You can only enroll yourself' },
+        { status: 403 }
+      );
+    }
+
+    // Fetch course details to check access rule
+    const course = await prisma.course.findUnique({
+      where: { id: courseId },
+      select: { 
+        id: true,
+        instructorId: true,
+        accessRule: true,
+        price: true,
+      },
+    });
+
+    if (!course) {
+      return NextResponse.json({ error: 'Course not found' }, { status: 404 });
+    }
+
+    // Check if this is a paid course
+    if (course.accessRule === 'PAYMENT') {
+      // For paid courses, only allow enrollment if payment is completed
+      const payment = await prisma.payment.findFirst({
+        where: {
+          userId: userId,
+          courseId: courseId,
+          status: 'COMPLETED',
+        },
       });
 
-      if (!course) {
-        return NextResponse.json({ error: 'Course not found' }, { status: 404 });
+      if (!payment) {
+        return NextResponse.json(
+          { 
+            error: 'Payment required. Please complete payment first.',
+            requiresPayment: true,
+            price: course.price,
+          },
+          { status: 402 }
+        );
       }
+    }
 
+    // Instructors can only enroll learners in their own courses
+    if (currentUser.role === 'INSTRUCTOR') {
       if (course.instructorId !== currentUser.id) {
         return NextResponse.json(
           { error: 'Unauthorized. You can only enroll learners in your own courses.' },

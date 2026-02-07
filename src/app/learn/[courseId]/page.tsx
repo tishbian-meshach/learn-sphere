@@ -145,15 +145,33 @@ export default function LessonPlayerPage() {
           setActiveLessonId(courseData.lessons[0].id);
         }
 
-        // Check if user is already enrolled, if not, enroll them
+        // Check if user has access to this course
+        const accessCheckRes = await fetch(`/api/enrollments/check-access?courseId=${courseId}`);
+        const accessData = await accessCheckRes.json();
+        
+        if (!accessData.hasAccess) {
+          // If payment required, redirect to payment or show error
+          if (accessData.reason === 'PAYMENT_REQUIRED') {
+            toast.error('This is a paid course. Please complete payment to access.');
+            router.push(`/learner/courses`);
+            return;
+          } else {
+            toast.error('You do not have access to this course.');
+            router.push(`/learner/courses`);
+            return;
+          }
+        }
+        
+        // Check if user is already enrolled
         const enrollCheckRes = await fetch(`/api/enrollments?userId=${user?.id}&courseId=${courseId}`);
         const enrollments = await enrollCheckRes.json();
         
-        if (!enrollments || enrollments.length === 0) {
+        // Only auto-enroll for FREE/OPEN courses
+        if ((!enrollments || enrollments.length === 0) && courseData.accessRule === 'OPEN') {
           await fetch('/api/enrollments', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ userId: user?.id, courseId })
+            body: JSON.stringify({ courseId })
           });
         }
       }

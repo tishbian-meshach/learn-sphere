@@ -25,6 +25,7 @@ enum LessonType {
 enum Visibility {
   EVERYONE
   SIGNED_IN
+  INVITATION
 }
 
 enum AccessRule {
@@ -276,4 +277,29 @@ model PointsLedger {
 
   @@index([userId])
   @@map("points_ledger")
+}
+
+enum PaymentStatus {
+  PENDING
+  COMPLETED
+  FAILED
+  REFUNDED
+}
+
+model Payment {
+  id                String        @id @default(cuid())
+  userId            String
+  courseId          String
+  stripeSessionId   String        @unique
+  stripePaymentId   String?
+  amount            Decimal       @db.Decimal(10, 2)
+  currency          String        @default("inr")
+  status            PaymentStatus @default(PENDING)
+  createdAt         DateTime      @default(now())
+  updatedAt         DateTime      @updatedAt
+
+  @@index([userId])
+  @@index([courseId])
+  @@index([status])
+  @@map("payments")
 }

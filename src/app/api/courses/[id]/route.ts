@@ -151,6 +151,12 @@ export async function PUT(
       });
     }
 
+    // Auto-determine accessRule based on price
+    const parsedPrice = price !== undefined ? (price ? parseFloat(price) : null) : undefined;
+    const autoAccessRule = parsedPrice !== undefined 
+      ? (parsedPrice && parsedPrice > 0 ? 'PAYMENT' : 'OPEN')
+      : undefined;
+
     const course = await prisma.course.update({
       where: { id: params.id },
       data: {
@@ -160,10 +166,11 @@ export async function PUT(
         ...(websiteUrl !== undefined && { websiteUrl }),
         ...(isPublished !== undefined && { isPublished }),
         ...(visibility && { visibility }),
-        ...(accessRule && { accessRule }),
+        // Auto-set accessRule based on price if price is being updated
+        ...(autoAccessRule !== undefined && { accessRule: autoAccessRule }),
         ...(level !== undefined && { level }),
         ...(subject !== undefined && { subject }),
-        ...(price !== undefined && { price: price ? parseFloat(price) : null }),
+        ...(parsedPrice !== undefined && { price: parsedPrice }),
         ...(tags?.length && {
           tags: {
             create: tags.map((tag: string) => ({ name: tag })),

@@ -27,17 +27,32 @@ export async function GET(request: NextRequest) {
     // Enforce visibility/published logic for Learners or unauthenticated requests
     const isSpecialRole = currentUser?.role === 'ADMIN' || currentUser?.role === 'INSTRUCTOR';
     
+    // Base where clause
+    const whereClause: any = {
+      ...(search && {
+        title: { contains: search, mode: 'insensitive' },
+      }),
+      ...instructorFilter,
+    };
+
+    // Published filter: learners/guests only see published courses
+    if (!isSpecialRole) {
+      whereClause.isPublished = true;
+    } else if (published !== null) {
+      whereClause.isPublished = published === 'true';
+    }
+
+    // Visibility filter
+    if (visibility) {
+      whereClause.visibility = visibility as any;
+    } else if (!isSpecialRole) {
+      // For learners/guests: show EVERYONE or SIGNED_IN (if logged in) courses
+      // Exclude INVITATION visibility unless they're enrolled
+      whereClause.visibility = currentUser ? { in: ['EVERYONE', 'SIGNED_IN'] } : 'EVERYONE';
+    }
+    
     const courses = await prisma.course.findMany({
-      where: {
-        ...(search && {
-          title: { contains: search, mode: 'insensitive' },
-        }),
-        // If not a special role, we only show published courses
-        ...(!isSpecialRole ? { isPublished: true } : published !== null && { isPublished: published === 'true' }),
-        // Filter by visibility if provided, or default to EVERYONE for learners if published=true
-        ...(visibility ? { visibility: visibility as any } : (!isSpecialRole && { visibility: 'EVERYONE' })),
-        ...instructorFilter,
-      },
+      where: whereClause,
       include: {
         instructor: {
           select: { id: true, name: true, avatarUrl: true },
@@ -62,8 +77,52 @@ export async function GET(request: NextRequest) {
       orderBy: { createdAt: 'desc' },
     });
 
+    // For learners: also fetch INVITATION visibility courses they're enrolled in
+    let invitationCourses: any[] = [];
+    if (!isSpecialRole && userId && currentUser) {
+      invitationCourses = await prisma.course.findMany({
+        where: {
+          visibility: 'INVITATION',
+          isPublished: true,
+          enrollments: {
+            some: { userId: currentUser.id }
+          },
+          ...(search && {
+            title: { contains: search, mode: 'insensitive' },
+          }),
+        },
+        include: {
+          instructor: {
+            select: { id: true, name: true, avatarUrl: true },
+          },
+          tags: true,
+          lessons: {
+            select: { id: true, duration: true },
+          },
+          reviews: {
+            select: { rating: true },
+          },
+          _count: {
+            select: { enrollments: true, reviews: true },
+          },
+          enrollments: {
+            where: { userId },
+            select: { status: true, progress: true }
+          },
+        },
+      });
+    }
+
+    // Merge courses and remove duplicates
+    const allCourses = [...courses, ...invitationCourses].reduce((acc, course) => {
+      if (!acc.find((c: any) => c.id === course.id)) {
+        acc.push(course);
+      }
+      return acc;
+    }, [] as any[]);
+
     // Transform data to ensure frontend gets the _count structure it expects
-    const coursesWithStats = courses.map((course) => {
+    const coursesWithStats = allCourses.map((course) => {
       const avgRating = course.reviews.length > 0
         ? course.reviews.reduce((sum, r) => sum + r.rating, 0) / course.reviews.length
         : 0;
@@ -115,6 +174,10 @@ export async function POST(request: NextRequest) {
       tags,
     } = body;
 
+    // Auto-determine accessRule based on price
+    const parsedPrice = price ? parseFloat(price) : null;
+    const finalAccessRule = parsedPrice && parsedPrice > 0 ? 'PAYMENT' : 'OPEN';
+
     const course = await prisma.course.create({
       data: {
         title,
@@ -122,8 +185,8 @@ export async function POST(request: NextRequest) {
         imageUrl,
         websiteUrl,
         visibility: visibility || 'EVERYONE',
-        accessRule: accessRule || 'OPEN',
-        price: price ? parseFloat(price) : null,
+        accessRule: finalAccessRule, // Auto-set based on price
+        price: parsedPrice,
         instructorId,
         tags: tags?.length
           ? {

@@ -19,6 +19,7 @@ import { Badge } from '@/components/ui/badge';
 import { CardSkeleton } from '@/components/ui/skeleton';
 import { EmptyState } from '@/components/ui/empty-state';
 import { Select } from '@/components/ui/select';
+import { CourseEnrollButton } from '@/components/shared/CourseEnrollButton';
 import { useAuth } from '@/hooks/use-auth';
 import { cn, formatDuration } from '@/lib/utils';
 import toast from 'react-hot-toast';
@@ -30,6 +31,7 @@ interface Course {
   imageUrl: string | null;
   instructor: { id: string; name: string | null };
   price: number | null;
+  accessRule: 'OPEN' | 'INVITATION' | 'PAYMENT';
   level: string | null;
   subject: string | null;
   _count: {
@@ -138,14 +140,16 @@ export default function BrowseCoursesPage() {
     }
 
     return (
-      <Button
-        className="w-full"
-        size="sm"
-        onClick={() => router.push(`/learn/${course.id}`)}
-        rightIcon={<ChevronRight className="w-4 h-4" />}
-      >
-        Enroll Now
-      </Button>
+      <CourseEnrollButton
+        courseId={course.id}
+        accessRule={course.accessRule}
+        price={course.price ? Number(course.price) : undefined}
+        isEnrolled={false}
+        onEnrollSuccess={() => {
+          fetchCourses();
+          router.push(`/learn/${course.id}`);
+        }}
+      />
     );
   };
   return (
