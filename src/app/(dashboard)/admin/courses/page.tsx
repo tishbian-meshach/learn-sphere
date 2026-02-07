@@ -388,9 +388,17 @@ export default function AdminCoursesPage() {
                     {new Date(course.updatedAt).toLocaleDateString()}
                   </td>
                   <td className="px-6 py-4 text-right">
-                    <Button variant="ghost" size="icon-sm" onClick={() => router.push(`/admin/courses/${course.id}`)}>
-                      <MoreVertical className="w-4 h-4" />
-                    </Button>
+                    <DropdownMenu trigger={<Button variant="ghost" size="icon-sm"><MoreVertical className="w-4 h-4" /></Button>}>
+                      <DropdownMenuItem onClick={() => router.push(`/admin/courses/${course.id}`)}>
+                        <FileEdit className="w-4 h-4 mr-2" /> Edit Details
+                      </DropdownMenuItem>
+                      <DropdownMenuItem onClick={() => window.open(`/courses/${course.id}`, '_blank')}>
+                        <ExternalLink className="w-4 h-4 mr-2" /> Preview
+                      </DropdownMenuItem>
+                      <DropdownMenuItem className="text-destructive" onClick={() => handleDeleteCourse(course.id, course.title)}>
+                        <Trash2 className="w-4 h-4 mr-2" /> Delete
+                      </DropdownMenuItem>
+                    </DropdownMenu>
                   </td>
                 </tr>
               ))}

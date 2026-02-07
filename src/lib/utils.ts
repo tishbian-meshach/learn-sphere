@@ -33,8 +33,7 @@ export function getInitials(name: string | null | undefined): string {
 }
 
 export const BADGE_THRESHOLDS = {
-  LEARNER: 0,
-  NEWBIE: 20,
+  NEWBIE: 0,
   EXPLORER: 40,
   ACHIEVER: 60,
   SPECIALIST: 80,
@@ -48,8 +47,7 @@ export function getBadgeLevel(points: number): keyof typeof BADGE_THRESHOLDS {
   if (points >= 80) return 'SPECIALIST';
   if (points >= 60) return 'ACHIEVER';
   if (points >= 40) return 'EXPLORER';
-  if (points >= 20) return 'NEWBIE';
-  return 'LEARNER';
+  return 'NEWBIE';
 }
 
 export function getNextBadgeProgress(points: number): { current: string; next: string; progress: number } {

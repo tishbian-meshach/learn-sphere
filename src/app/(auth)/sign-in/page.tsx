@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, Suspense } from 'react';
 import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { GraduationCap, Eye, EyeOff, Lock, Mail, Loader2, Info } from 'lucide-react';
@@ -9,7 +9,7 @@ import { Input } from '@/components/ui/input';
 import { useAuth } from '@/hooks/use-auth';
 import toast from 'react-hot-toast';
 
-export default function SignInPage() {
+function SignInPageContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const { signIn, signInWithGoogle, user, profile } = useAuth();
@@ -202,5 +202,17 @@ export default function SignInPage() {
         </p>
       </div>
     </div>
+  );
+}
+
+export default function SignInPage() {
+  return (
+    <Suspense fallback={
+      <div className="min-h-screen bg-slate-50 flex items-center justify-center">
+        <Loader2 className="w-8 h-8 animate-spin text-primary" />
+      </div>
+    }>
+      <SignInPageContent />
+    </Suspense>
   );
 }

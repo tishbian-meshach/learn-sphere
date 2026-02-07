@@ -528,7 +528,7 @@ export default function CourseEditPage() {
                             level: course.level, 
                             subject: course.subject, 
                             price: course.price,
-                            tags: course.tags.map(t => t.name)
+                            tags: course.tags
                           })} isLoading={isSaving} leftIcon={<Save className="w-4 h-4" />}>
                              Save Changes
                           </Button>
