@@ -10,6 +10,7 @@ export async function GET(request: NextRequest) {
     const search = searchParams.get('search') || '';
     const published = searchParams.get('published');
     const instructorId = searchParams.get('instructorId');
+    const userId = searchParams.get('userId');
 
     const courses = await prisma.course.findMany({
       where: {
@@ -30,6 +31,12 @@ export async function GET(request: NextRequest) {
         _count: {
           select: { enrollments: true, reviews: true },
         },
+        ...(userId && {
+          enrollments: {
+            where: { userId },
+            select: { status: true, progress: true }
+          }
+        }),
       },
       orderBy: { createdAt: 'desc' },
     });
@@ -42,9 +49,17 @@ export async function GET(request: NextRequest) {
         enrollments: course._count.enrollments,
         reviews: course._count.reviews,
       },
+      // Check if user is enrolled and their progress
+      userStatus: userId && course.enrollments?.[0] ? {
+        enrolled: true,
+        status: course.enrollments[0].status,
+        progress: course.enrollments[0].progress,
+      } : { enrolled: false },
+      
       // Keep lessons relation for totalDuration calculation but it's not needed in the final JSON for list views
       totalDuration: course.lessons.reduce((sum, l) => sum + (l.duration || 0), 0),
       lessons: undefined,
+      enrollments: undefined,
       price: course.price ? Number(course.price) : 0,
     }));
 

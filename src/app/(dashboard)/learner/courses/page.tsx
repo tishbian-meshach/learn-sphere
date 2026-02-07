@@ -11,6 +11,7 @@ import {
   ChevronRight,
   Filter,
   GraduationCap,
+  CheckCircle,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -21,7 +22,7 @@ import { useAuth } from '@/hooks/use-auth';
 import { cn, formatDuration } from '@/lib/utils';
 import toast from 'react-hot-toast';
 
-interface Course {
+  interface Course {
   id: string;
   title: string;
   description: string | null;
@@ -35,6 +36,11 @@ interface Course {
     reviews: number;
   };
   rating: number;
+  userStatus?: {
+    enrolled: boolean;
+    status: 'PENDING' | 'ACTIVE' | 'COMPLETED';
+    progress: number;
+  };
 }
 
 export default function BrowseCoursesPage() {
@@ -45,12 +51,12 @@ export default function BrowseCoursesPage() {
   const [searchQuery, setSearchQuery] = useState('');
 
   useEffect(() => {
-    fetchCourses();
-  }, []);
+    if (user?.id) fetchCourses();
+  }, [user?.id]);
 
   const fetchCourses = async () => {
     try {
-      const res = await fetch('/api/courses?status=PUBLISHED');
+      const res = await fetch(`/api/courses?status=PUBLISHED&userId=${user?.id}`);
       if (res.ok) {
         const data = await res.json();
         setCourses(data);
@@ -66,6 +72,45 @@ export default function BrowseCoursesPage() {
     c.title.toLowerCase().includes(searchQuery.toLowerCase())
   );
 
+  const getCourseButton = (course: Course) => {
+    if (course.userStatus?.status === 'COMPLETED' || course.userStatus?.progress === 100) {
+      return (
+        <Button 
+          className="w-full bg-emerald-500 hover:bg-emerald-600 text-white" 
+          size="sm" 
+          onClick={() => router.push(`/learn/${course.id}`)} 
+          leftIcon={<CheckCircle className="w-4 h-4" />}
+        >
+           Completed
+        </Button>
+      );
+    }
+    
+    if (course.userStatus?.enrolled) {
+      return (
+        <Button 
+          className="w-full" 
+          variant="secondary"
+          size="sm" 
+          onClick={() => router.push(`/learn/${course.id}`)} 
+          rightIcon={<ChevronRight className="w-4 h-4" />}
+        >
+           Resume Course
+        </Button>
+      );
+    }
+
+    return (
+      <Button 
+        className="w-full" 
+        size="sm" 
+        onClick={() => router.push(`/learn/${course.id}`)} 
+        rightIcon={<ChevronRight className="w-4 h-4" />}
+      >
+         Enroll Now
+      </Button>
+    );
+  };
   return (
     <div className="max-w-screen-xl mx-auto space-y-8">
       {/* Header Section */}
@@ -151,9 +196,7 @@ export default function BrowseCoursesPage() {
                        )}
                     </div>
 
-                    <Button className="w-full" size="sm" onClick={() => router.push(`/learn/${course.id}`)} rightIcon={<ChevronRight className="w-4 h-4" />}>
-                       Enroll Now
-                    </Button>
+                    {getCourseButton(course)}
                   </div>
                </div>
             </div>

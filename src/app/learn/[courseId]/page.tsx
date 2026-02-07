@@ -67,6 +67,23 @@ export default function LessonPlayerPage() {
     }
   }, [courseId, user]);
 
+  const getVideoEmbedUrl = (url: string) => {
+    if (!url) return null;
+    const ytMatch = url.match(/(?:https?:\/\/)?(?:www\.)?(?:youtube\.com\/watch\?v=|youtu\.be\/|youtube\.com\/embed\/)([a-zA-Z0-9_-]{11})/);
+    if (ytMatch && ytMatch[1]) {
+      return `https://www.youtube.com/embed/${ytMatch[1]}`;
+    }
+    return null;
+  };
+
+  const isDirectVideo = (url: string) => {
+    if (!url) return false;
+    const videoExtensions = ['.mp4', '.webm', '.ogg'];
+    return videoExtensions.some(ext => url.toLowerCase().endsWith(ext)) || 
+           url.includes('supabase.co/storage/v1/object/public/') ||
+           url.includes('googleusercontent.com'); // Handles some external direct links
+  };
+
   const fetchCourseAndProgress = async () => {
     try {
       const [courseRes, progressRes] = await Promise.all([
@@ -220,30 +237,37 @@ export default function LessonPlayerPage() {
           <div className="max-w-4xl mx-auto w-full p-4 md:p-8 space-y-8">
              {/* Content Carrier */}
              <div className="card shadow-none p-0 overflow-hidden bg-white">
-                 {activeLesson?.type === 'VIDEO' ? (
-                   <div className="aspect-video bg-surface-900 flex items-center justify-center">
-                     {activeLesson.videoUrl ? (
-                       <iframe 
-                         src={activeLesson.videoUrl} 
-                         className="w-full h-full"
-                         allowFullScreen
-                       />
-                     ) : (
-                       <div className="flex flex-col items-center gap-4">
-                          <Video className="w-12 h-12 text-surface-700" />
-                          <p className="text-surface-500 text-sm">No video source configured.</p>
-                       </div>
-                     )}
-                   </div>
-                 ) : activeLesson?.type === 'IMAGE' ? (
-                   <div className="aspect-video bg-surface-50 flex items-center justify-center border-b border-border overflow-hidden">
-                      {activeLesson.imageUrl ? (
-                        <img src={activeLesson.imageUrl} className="w-full h-full object-contain" />
+                  {activeLesson?.type === 'VIDEO' ? (
+                    <div className="aspect-video bg-surface-900 flex items-center justify-center relative">
+                      {activeLesson.videoUrl ? (
+                        getVideoEmbedUrl(activeLesson.videoUrl) ? (
+                          <iframe 
+                            src={getVideoEmbedUrl(activeLesson.videoUrl)!} 
+                            className="w-full h-full"
+                            allowFullScreen
+                          />
+                        ) : isDirectVideo(activeLesson.videoUrl) ? (
+                          <video 
+                            src={activeLesson.videoUrl} 
+                            className="w-full h-full" 
+                            controls 
+                            controlsList="nodownload"
+                          />
+                        ) : (
+                          <iframe 
+                            src={activeLesson.videoUrl} 
+                            className="w-full h-full"
+                            allowFullScreen
+                          />
+                        )
                       ) : (
-                        <ImageIcon className="w-12 h-12 text-surface-200" />
+                        <div className="flex flex-col items-center gap-4">
+                           <Video className="w-12 h-12 text-surface-700" />
+                           <p className="text-surface-500 text-sm">No video source configured.</p>
+                        </div>
                       )}
-                   </div>
-                 ) : (
+                    </div>
+                  ) : null}
                    <div className="p-8 md:p-12 prose prose-slate max-w-none">
                       <div className="flex items-center gap-3 mb-8 border-b border-border pb-4">
                          <Badge variant="primary" size="sm">{activeLesson?.type}</Badge>
@@ -257,29 +281,56 @@ export default function LessonPlayerPage() {
                         </div>
                       )}
 
-                      <div className="text-surface-700 leading-relaxed whitespace-pre-wrap">
-                         {activeLesson?.description || "This unit has no textual exposition provided."}
-                      </div>
+                       <div className="text-surface-700 leading-relaxed whitespace-pre-wrap">
+                          {activeLesson?.description || "This unit has no textual exposition provided."}
+                       </div>
 
-                      {activeLesson?.type === 'DOCUMENT' && activeLesson.documentUrl && (
-                        <div className="mt-8 p-4 rounded-md border border-primary/20 bg-primary/5 flex items-center justify-between">
-                           <div className="flex items-center gap-3">
-                              <FileText className="w-5 h-5 text-primary" />
-                              <div className="text-sm">
-                                 <p className="font-bold text-surface-900">Technical Resource Available</p>
-                                 <p className="text-xs text-surface-500">Access the full documentation for this module.</p>
-                              </div>
-                           </div>
-                           <Button asChild size="sm">
-                              <a href={activeLesson.documentUrl} target="_blank" download={activeLesson.allowDownload}>
-                                 {activeLesson.allowDownload ? <Download className="w-4 h-4 mr-2" /> : <ExternalLink className="w-4 h-4 mr-2" />}
-                                 Access Guide
-                              </a>
-                           </Button>
-                        </div>
-                      )}
-                   </div>
-                 )}
+                       {/* Rich Preview Section */}
+                       <div className="mt-8 space-y-6">
+                          {activeLesson?.type === 'DOCUMENT' && activeLesson.documentUrl && (
+                            <div className="space-y-4">
+                               <div className="flex items-center gap-3 border-b border-border pb-2">
+                                  <FileText className="w-4 h-4 text-primary" />
+                                  <span className="text-xs font-bold uppercase tracking-wider text-surface-500">Document Artifact Preview</span>
+                               </div>
+                               <div className="aspect-[4/5] w-full rounded-md border border-border bg-slate-50 overflow-hidden shadow-inner">
+                                  <iframe 
+                                    src={`${activeLesson.documentUrl}#toolbar=0&navpanes=0`} 
+                                    className="w-full h-full"
+                                    title="Technical Resource Preview"
+                                  />
+                               </div>
+                               <div className="p-4 rounded-md border border-primary/20 bg-primary/5 flex items-center justify-between">
+                                  <div className="flex items-center gap-3">
+                                     <FileText className="w-5 h-5 text-primary" />
+                                     <div className="text-sm">
+                                        <p className="font-bold text-surface-900">Technical Resource Available</p>
+                                        <p className="text-xs text-surface-500">Access the full documentation for this module.</p>
+                                     </div>
+                                  </div>
+                                  <Button asChild size="sm">
+                                     <a href={activeLesson.documentUrl} target="_blank" download={activeLesson.allowDownload}>
+                                        {activeLesson.allowDownload ? <Download className="w-4 h-4 mr-2" /> : <ExternalLink className="w-4 h-4 mr-2" />}
+                                        Access Guide
+                                     </a>
+                                  </Button>
+                               </div>
+                            </div>
+                          )}
+
+                          {activeLesson?.type === 'IMAGE' && activeLesson.imageUrl && (
+                            <div className="space-y-4">
+                               <div className="flex items-center gap-3 border-b border-border pb-2">
+                                  <ImageIcon className="w-4 h-4 text-primary" />
+                                  <span className="text-xs font-bold uppercase tracking-wider text-surface-500">Image Asset Preview</span>
+                               </div>
+                               <div className="rounded-md border border-border bg-white overflow-hidden shadow-sm">
+                                  <img src={activeLesson.imageUrl} className="w-full h-auto" alt={activeLesson.title} />
+                               </div>
+                            </div>
+                          )}
+                       </div>
+                    </div>
               </div>
 
               {/* Supplementary Attachments */}
