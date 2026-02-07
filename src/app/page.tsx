@@ -1,8 +1,42 @@
+'use client';
+
+import { useEffect } from 'react';
+import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { GraduationCap, ArrowRight, BookOpen, Users, Trophy } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { useAuth } from '@/hooks/use-auth';
 
 export default function HomePage() {
+  const router = useRouter();
+  const { user, profile, isLoading } = useAuth();
+
+  // Auto-redirect signed-in users to their dashboard
+  useEffect(() => {
+    if (!isLoading && user && profile) {
+      const dashboardPath = profile.role === 'ADMIN' ? '/admin/courses' : '/learner/courses';
+      router.replace(dashboardPath);
+    }
+  }, [isLoading, user, profile, router]);
+
+  // Show nothing while checking auth to prevent flash
+  if (isLoading) {
+    return (
+      <div className="min-h-screen bg-slate-50 flex items-center justify-center">
+        <div className="w-8 h-8 border-2 border-primary border-t-transparent rounded-full animate-spin" />
+      </div>
+    );
+  }
+
+  // If user is authenticated, show loading while redirecting
+  if (user && profile) {
+    return (
+      <div className="min-h-screen bg-slate-50 flex items-center justify-center">
+        <div className="w-8 h-8 border-2 border-primary border-t-transparent rounded-full animate-spin" />
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-screen bg-slate-50 flex flex-col">
       {/* Simple Header */}
