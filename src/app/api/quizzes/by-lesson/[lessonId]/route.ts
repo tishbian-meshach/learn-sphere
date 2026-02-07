@@ -8,6 +8,9 @@ export async function GET(
   { params }: { params: { lessonId: string } }
 ) {
   try {
+    const { searchParams } = new URL(request.url);
+    const userId = searchParams.get('userId');
+
     let quiz = await prisma.quiz.findUnique({
       where: { lessonId: params.lessonId },
       include: {
@@ -19,6 +22,15 @@ export async function GET(
         },
       },
     });
+
+    if (quiz && userId) {
+      const latestAttempt = await prisma.quizAttempt.findFirst({
+        where: { userId, quizId: quiz.id },
+        orderBy: { completedAt: 'desc' },
+      });
+      // @ts-ignore
+      quiz.latestAttempt = latestAttempt;
+    }
 
     // Auto-repair if lesson is QUIZ but record is missing
     if (!quiz) {

@@ -13,6 +13,8 @@ interface UserProfile {
   role: Role;
   totalPoints: number;
   badgeLevel: string;
+  badgePoints: number;
+  completedCourses: number;
 }
 
 interface AuthContextType {

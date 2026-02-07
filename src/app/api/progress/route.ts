@@ -63,6 +63,21 @@ export async function PUT(request: NextRequest) {
       },
     });
 
+    // Handle Badge Leveling on Course Completion
+    if (courseProgress >= 100) {
+      const completedCoursesCount = await prisma.enrollment.count({
+        where: { userId, status: 'COMPLETED' }
+      });
+      
+      const badgePoints = Math.min(completedCoursesCount * 20, 120);
+      const newBadgeLevel = getBadgeLevel(badgePoints);
+
+      await prisma.user.update({
+        where: { id: userId },
+        data: { badgeLevel: newBadgeLevel }
+      });
+    }
+
     return NextResponse.json({ progress, courseProgress });
   } catch (error) {
     console.error('Error updating progress:', error);

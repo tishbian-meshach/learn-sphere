@@ -22,11 +22,17 @@ export async function GET(
       },
     });
 
-    if (!user) {
-      return NextResponse.json({ error: 'User not found' }, { status: 404 });
-    }
+    const completedCoursesCount = await prisma.enrollment.count({
+      where: { userId: params.id, status: 'COMPLETED' },
+    });
 
-    return NextResponse.json(user);
+    const badgePoints = Math.min(completedCoursesCount * 20, 120);
+
+    return NextResponse.json({
+      ...user,
+      badgePoints,
+      completedCourses: completedCoursesCount,
+    });
   } catch (error) {
     console.error('Error fetching user:', error);
     return NextResponse.json({ error: 'Failed to fetch user' }, { status: 500 });

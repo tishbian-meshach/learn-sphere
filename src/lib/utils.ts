@@ -33,7 +33,7 @@ export function getInitials(name: string | null | undefined): string {
 }
 
 export const BADGE_THRESHOLDS = {
-  NEWBIE: 0,
+  NEWBIE: 20,
   EXPLORER: 40,
   ACHIEVER: 60,
   SPECIALIST: 80,

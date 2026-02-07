@@ -37,7 +37,8 @@ export function LearnerSidebar({ isCollapsed, setIsCollapsed }: LearnerSidebarPr
   const { profile, signOut } = useAuth();
   const [isMobileOpen, setIsMobileOpen] = useState(false);
 
-  const nextBadge = getNextBadgeProgress(profile?.totalPoints || 0);
+  const nextBadge = getNextBadgeProgress(profile?.badgePoints || 0);
+  const badgeProgress = ((profile?.badgePoints || 0) / 120) * 100;
 
   const handleSignOut = async () => {
     await signOut();
@@ -86,21 +87,38 @@ export function LearnerSidebar({ isCollapsed, setIsCollapsed }: LearnerSidebarPr
 
         {/* Stats Card (Learner Specific) */}
         {!isCollapsed && (
-          <div className="p-4 mx-3 my-4 bg-slate-50 border border-border rounded-md">
-            <div className="flex items-center justify-between mb-3">
-              <div className="flex items-center gap-1.5">
-                <Trophy className="w-3.5 h-3.5 text-amber-500" />
-                <span className="text-[10px] font-bold uppercase tracking-widest text-surface-500">Exp Points</span>
-              </div>
-              <span className="text-xs font-extrabold text-surface-900">{profile?.totalPoints}</span>
-            </div>
-            <div className="space-y-1.5">
-              <div className="flex justify-between text-[10px] font-bold text-surface-500">
-                <span>{profile?.badgeLevel}</span>
-                <span>{nextBadge.next}</span>
-              </div>
-              <Progress value={nextBadge.progress} size="sm" />
-            </div>
+          <div className="mx-3 my-4 space-y-3">
+             {/* Quiz XP */}
+             <div className="p-3 bg-slate-50 border border-border rounded-md">
+                <div className="flex items-center justify-between">
+                   <div className="flex items-center gap-1.5">
+                      <Trophy className="w-3 h-3 text-amber-500" />
+                      <span className="text-[9px] font-bold uppercase tracking-widest text-surface-500">Quiz Knowledge (XP)</span>
+                   </div>
+                   <span className="text-xs font-black text-surface-900">{profile?.totalPoints}</span>
+                </div>
+             </div>
+
+             {/* Badge Progression */}
+             <div className="p-3 bg-primary/[0.03] border border-primary/10 rounded-md">
+                <div className="flex items-center justify-between mb-2">
+                   <div className="flex items-center gap-1.5">
+                      <GraduationCap className="w-3 h-3 text-primary" />
+                      <span className="text-[9px] font-bold uppercase tracking-widest text-primary">Badge Points</span>
+                   </div>
+                   <span className="text-xs font-black text-primary">{profile?.badgePoints}/120</span>
+                </div>
+                <div className="space-y-1.5">
+                   <div className="flex justify-between text-[9px] font-bold text-surface-400">
+                      <span>{profile?.badgeLevel}</span>
+                      <span>{nextBadge.next}</span>
+                   </div>
+                   <Progress value={badgeProgress} size="sm" className="bg-primary/10" />
+                   <p className="text-[8px] font-medium text-surface-400 italic">
+                      {profile?.completedCourses || 0} Courses Certified
+                   </p>
+                </div>
+             </div>
           </div>
         )}
 

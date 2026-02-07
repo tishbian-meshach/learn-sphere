@@ -36,6 +36,7 @@ import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
 import { Textarea } from '@/components/ui/textarea';
 import { CourseReviews } from '@/components/shared/CourseReviews';
+import { CourseCompletionModal } from '@/components/shared/CourseCompletionModal';
 import { useAuth } from '@/hooks/use-auth';
 import { cn } from '@/lib/utils';
 import toast from 'react-hot-toast';
@@ -84,6 +85,10 @@ export default function LessonPlayerPage() {
 
   // Reviews State
   const [activeTab, setActiveTab] = useState<'syllabus' | 'reviews'>('syllabus');
+
+  // Achievement State
+  const [isCompletionModalOpen, setIsCompletionModalOpen] = useState(false);
+  const [hasShownCompletion, setHasShownCompletion] = useState(false);
 
   // Time Tracking
   const [sessionTime, setSessionTime] = useState(0);
@@ -180,10 +185,16 @@ export default function LessonPlayerPage() {
       // Find the quiz linked to this lesson
       // Quizzes are 1:1 with lessons, but we need the quiz ID
       // We'll fetch it from an endpoint that finds it by lessonId
-      const res = await fetch(`/api/quizzes/by-lesson/${lessonId}`);
+      const res = await fetch(`/api/quizzes/by-lesson/${lessonId}?userId=${user?.id}`);
       if (res.ok) {
         const data = await res.json();
         setQuizData(data);
+        
+        if (data.latestAttempt) {
+          const isPassed = (data.latestAttempt.score / data.questions.length) >= 0.8;
+          setQuizResults({ ...data.latestAttempt, isPassed });
+          setQuizPhase('RESULTS');
+        }
       } else {
         setQuizData(null);
       }
@@ -265,6 +276,12 @@ export default function LessonPlayerPage() {
           setCompletedLessons(prev => {
             const next = new Set(Array.from(prev));
             next.add(activeLessonId!);
+            
+            // Check for total course completion
+            if (course && next.size === course.lessons.length && !hasShownCompletion) {
+              setIsCompletionModalOpen(true);
+              setHasShownCompletion(true);
+            }
             return next;
           });
           
@@ -316,7 +333,14 @@ export default function LessonPlayerPage() {
       if (res.ok) {
         setCompletedLessons(prev => {
           const next = new Set(Array.from(prev));
-          next.add(activeLessonId);
+          if (!next.has(activeLessonId)) {
+            next.add(activeLessonId);
+            // Check for total course completion
+            if (course && next.size === course.lessons.length && !hasShownCompletion) {
+              setIsCompletionModalOpen(true);
+              setHasShownCompletion(true);
+            }
+          }
           return next;
         });
         setSessionTime(0);
@@ -833,6 +857,14 @@ export default function LessonPlayerPage() {
            )}
         </aside>
       </div>
+      
+      {/* Achievement Recognition Modal */}
+      <CourseCompletionModal 
+        isOpen={isCompletionModalOpen}
+        onClose={() => setIsCompletionModalOpen(false)}
+        courseTitle={course?.title || 'Professional Curriculum'}
+        pointsEarned={20}
+      />
     </div>
   );
 }

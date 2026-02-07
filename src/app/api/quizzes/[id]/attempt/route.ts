@@ -66,30 +66,13 @@ export async function POST(
       },
     });
 
-    // Calculate new total points with a cap of 120
-    const currentUser = await prisma.user.findUnique({
-      where: { id: userId },
-      select: { totalPoints: true, badgeLevel: true }
-    });
-
-    const currentTotal = currentUser?.totalPoints || 0;
-    const newTotalPoints = Math.min(currentTotal + pointsEarned, 120);
-
-    // Update user points
+    // Update user points (Knowledge XP)
     const user = await prisma.user.update({
       where: { id: userId },
       data: {
-        totalPoints: newTotalPoints,
+        totalPoints: { increment: pointsEarned },
       },
     });
-
-    const newBadgeLevel = getBadgeLevel(user.totalPoints);
-    if (newBadgeLevel !== user.badgeLevel) {
-      await prisma.user.update({
-        where: { id: userId },
-        data: { badgeLevel: newBadgeLevel },
-      });
-    }
 
     // Add to points ledger
     await prisma.pointsLedger.create({
