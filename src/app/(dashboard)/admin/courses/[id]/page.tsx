@@ -26,6 +26,7 @@ import {
   Users,
   X,
   Trophy,
+  MessageSquare,
 } from 'lucide-react';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
@@ -42,6 +43,7 @@ import { Modal } from '@/components/ui/modal';
 import { uploadFile } from '@/lib/supabase/storage';
 import { compressImage } from '@/lib/image-utils';
 import { QuizBuilder } from '@/components/admin/QuizBuilder';
+import { CourseReviews } from '@/components/shared/CourseReviews';
 import toast from 'react-hot-toast';
 
 interface Lesson {
@@ -361,6 +363,7 @@ export default function CourseEditPage() {
   const tabs = [
     { id: 'content', label: 'Curriculum', icon: <Layout className="w-4 h-4" /> },
     { id: 'quizzes', label: 'Assessments', icon: <Trophy className="w-4 h-4" /> },
+    { id: 'reviews', label: 'Learner Reviews', icon: <MessageSquare className="w-4 h-4" /> },
     { id: 'details', label: 'Publication info', icon: <BookOpen className="w-4 h-4" /> },
     { id: 'settings', label: 'Infrastructure', icon: <SettingsIcon className="w-4 h-4" /> },
   ];
@@ -651,6 +654,12 @@ export default function CourseEditPage() {
                         </div>
                       )}
                    </div>
+                </TabPanel>
+
+                <TabPanel isActive={activeTab === 'reviews'}>
+                  <div className="h-[600px] border border-border rounded-xl overflow-hidden">
+                    <CourseReviews courseId={id as string} readOnly />
+                  </div>
                 </TabPanel>
              </div>
           </div>

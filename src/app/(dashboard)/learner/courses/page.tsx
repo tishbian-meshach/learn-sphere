@@ -35,7 +35,7 @@ import toast from 'react-hot-toast';
     enrollments: number;
     reviews: number;
   };
-  rating: number;
+  averageRating: number;
   userStatus?: {
     enrolled: boolean;
     status: 'PENDING' | 'ACTIVE' | 'COMPLETED';
@@ -181,8 +181,8 @@ export default function BrowseCoursesPage() {
                     <div className="flex items-center justify-between pt-4 border-t border-border">
                        <div className="flex items-center gap-1.5 text-surface-500">
                           <Star className="w-3.5 h-3.5 text-amber-400 fill-amber-400" />
-                          <span className="text-xs font-bold">{course.rating || '5.0'}</span>
-                          <span className="text-[10px]">({course._count?.enrollments ?? 0})</span>
+                          <span className="text-xs font-bold">{course.averageRating > 0 ? course.averageRating : 'New'}</span>
+                          <span className="text-[10px]">({course._count?.reviews ?? 0})</span>
                        </div>
                        {(course.price === null || course.price === 0) ? (
                          <span className="px-2.5 py-1 rounded-full bg-emerald-50 text-emerald-600 text-[10px] font-bold uppercase tracking-wider">

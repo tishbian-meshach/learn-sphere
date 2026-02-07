@@ -69,10 +69,26 @@ export async function GET(
         ? course.reviews.reduce((sum, r) => sum + r.rating, 0) / course.reviews.length
         : 0;
 
+    // Fetch user status if logged in
+    let userStatus = null;
+    if (currentUser) {
+      const enrollment = await prisma.enrollment.findUnique({
+        where: {
+          userId_courseId: {
+            userId: currentUser.id,
+            courseId: params.id,
+          },
+        },
+        select: { status: true },
+      });
+      userStatus = enrollment?.status || null;
+    }
+
     return NextResponse.json({
       ...course,
       averageRating: Math.round(avgRating * 10) / 10,
       enrollmentsCount: course._count.enrollments,
+      userStatus,
       _count: undefined,
     });
   } catch (error) {

@@ -39,6 +39,9 @@ export async function GET(request: NextRequest) {
         lessons: {
           select: { id: true, duration: true },
         },
+        reviews: {
+          select: { rating: true },
+        },
         _count: {
           select: { enrollments: true, reviews: true },
         },
@@ -53,26 +56,34 @@ export async function GET(request: NextRequest) {
     });
 
     // Transform data to ensure frontend gets the _count structure it expects
-    const coursesWithStats = courses.map((course) => ({
-      ...course,
-      _count: {
-        lessons: course.lessons.length,
-        enrollments: course._count.enrollments,
-        reviews: course._count.reviews,
-      },
-      // Check if user is enrolled and their progress
-      userStatus: userId && course.enrollments?.[0] ? {
-        enrolled: true,
-        status: course.enrollments[0].status,
-        progress: course.enrollments[0].progress,
-      } : { enrolled: false },
-      
-      // Keep lessons relation for totalDuration calculation but it's not needed in the final JSON for list views
-      totalDuration: course.lessons.reduce((sum, l) => sum + (l.duration || 0), 0),
-      lessons: undefined,
-      enrollments: undefined,
-      price: course.price ? Number(course.price) : 0,
-    }));
+    const coursesWithStats = courses.map((course) => {
+      const avgRating = course.reviews.length > 0
+        ? course.reviews.reduce((sum, r) => sum + r.rating, 0) / course.reviews.length
+        : 0;
+
+      return {
+        ...course,
+        _count: {
+          lessons: course.lessons.length,
+          enrollments: course._count.enrollments,
+          reviews: course._count.reviews,
+        },
+        averageRating: Math.round(avgRating * 10) / 10,
+        // Check if user is enrolled and their progress
+        userStatus: userId && course.enrollments?.[0] ? {
+          enrolled: true,
+          status: course.enrollments[0].status,
+          progress: course.enrollments[0].progress,
+        } : { enrolled: false },
+        
+        // Keep lessons relation for totalDuration calculation but it's not needed in the final JSON for list views
+        totalDuration: course.lessons.reduce((sum, l) => sum + (l.duration || 0), 0),
+        lessons: undefined,
+        reviews: undefined,
+        enrollments: undefined,
+        price: course.price ? Number(course.price) : 0,
+      };
+    });
 
     return NextResponse.json(coursesWithStats);
   } catch (error) {

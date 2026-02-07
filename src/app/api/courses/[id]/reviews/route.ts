@@ -40,6 +40,23 @@ export async function POST(
     const body = await request.json();
     const { userId, rating, comment } = body;
 
+    // Check enrollment and completion status
+    const enrollment = await prisma.enrollment.findUnique({
+      where: {
+        userId_courseId: {
+          userId,
+          courseId: params.id,
+        },
+      },
+    });
+
+    if (!enrollment || enrollment.status !== 'COMPLETED') {
+      return NextResponse.json(
+        { error: 'You must complete the course before leaving a review.' },
+        { status: 403 }
+      );
+    }
+
     // Check if user already reviewed
     const existing = await prisma.review.findUnique({
       where: { userId_courseId: { userId, courseId: params.id } },

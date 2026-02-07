@@ -27,10 +27,15 @@ import {
   Plus,
   AlertCircle,
   Save,
+  Star,
+  MessageSquare,
+  Send,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
+import { Textarea } from '@/components/ui/textarea';
+import { CourseReviews } from '@/components/shared/CourseReviews';
 import { useAuth } from '@/hooks/use-auth';
 import { cn } from '@/lib/utils';
 import toast from 'react-hot-toast';
@@ -76,6 +81,9 @@ export default function LessonPlayerPage() {
   const [selectedOptionIndex, setSelectedOptionIndex] = useState<number | null>(null);
   const [score, setScore] = useState(0);
   const [quizResults, setQuizResults] = useState<any>(null);
+
+  // Reviews State
+  const [activeTab, setActiveTab] = useState<'syllabus' | 'reviews'>('syllabus');
 
   useEffect(() => {
     if (user && courseId) {
@@ -132,6 +140,11 @@ export default function LessonPlayerPage() {
     }
   };
 
+  useEffect(() => {
+    if (activeTab === 'reviews') {
+      // No need to fetch reviews here, component handles it
+    }
+  }, [activeTab]);
   const activeLesson = course?.lessons?.find(l => l.id === activeLessonId);
   const activeIndex = course?.lessons?.findIndex(l => l.id === activeLessonId) ?? 0;
 
@@ -362,7 +375,7 @@ export default function LessonPlayerPage() {
               <span className="text-[10px] font-extrabold text-surface-400 uppercase tracking-wider">Global Progress</span>
               <div className="flex items-center gap-3">
                  <Progress value={progressPercent} size="sm" className="w-32" />
-                 <span className="text-[10px] font-extrabold text-surface-700">        {Math.round(progressPercent)}%</span>
+                 <span className="text-[10px] font-extrabold text-surface-700">{Math.round(progressPercent)}%</span>
               </div>
            </div>
            <Button variant="outline" size="icon-sm" onClick={() => setIsSidebarOpen(!isSidebarOpen)}>
@@ -729,47 +742,71 @@ export default function LessonPlayerPage() {
           "border-l border-border bg-white transition-all duration-300 overflow-hidden flex flex-col",
           isSidebarOpen ? "w-80" : "w-0"
         )}>
-          <div className="p-4 border-b border-border bg-slate-50/50">
-             <h3 className="text-[10px] font-extrabold text-surface-500 uppercase tracking-wider">Syllabus Registry</h3>
+          <div className="flex items-center border-b border-border">
+            <button
+              onClick={() => setActiveTab('syllabus')}
+              className={cn(
+                "flex-1 p-4 text-xs font-bold uppercase tracking-wider transition-colors border-b-2",
+                activeTab === 'syllabus' ? "border-primary text-primary bg-primary/5" : "border-transparent text-surface-500 hover:text-surface-900 hover:bg-slate-50"
+              )}
+            >
+              Syllabus
+            </button>
+            <button
+              onClick={() => setActiveTab('reviews')}
+              className={cn(
+                "flex-1 p-4 text-xs font-bold uppercase tracking-wider transition-colors border-b-2",
+                activeTab === 'reviews' ? "border-primary text-primary bg-primary/5" : "border-transparent text-surface-500 hover:text-surface-900 hover:bg-slate-50"
+              )}
+            >
+              Reviews
+            </button>
           </div>
-          <div className="flex-1 overflow-y-auto">
-             {(course.lessons || []).sort((a: any, b: any) => a.orderIndex - b.orderIndex).map((lesson, idx) => {
-               const isActive = lesson.id === activeLessonId;
-               const isCompleted = completedLessons.has(lesson.id);
-               
-               return (
-                 <button
-                   key={lesson.id}
-                   onClick={() => setActiveLessonId(lesson.id)}
-                   className={cn(
-                     "w-full flex items-center gap-3 p-4 border-b border-border text-left transition-colors",
-                     isActive ? "bg-primary/5 cursor-default" : "hover:bg-slate-50"
-                   )}
-                 >
-                   <div className="flex-shrink-0 relative">
-                     {isCompleted ? (
-                       <CheckCircle className="w-5 h-5 text-emerald-500" />
-                     ) : (
-                       <Circle className={cn("w-5 h-5", isActive ? "text-primary" : "text-surface-300")} />
+
+          {activeTab === 'syllabus' ? (
+            <div className="flex-1 overflow-y-auto">
+               {(course.lessons || []).sort((a: any, b: any) => a.orderIndex - b.orderIndex).map((lesson, idx) => {
+                 const isActive = lesson.id === activeLessonId;
+                 const isCompleted = completedLessons.has(lesson.id);
+                 
+                 return (
+                   <button
+                     key={lesson.id}
+                     onClick={() => setActiveLessonId(lesson.id)}
+                     className={cn(
+                       "w-full flex items-center gap-3 p-4 border-b border-border text-left transition-colors",
+                       isActive ? "bg-primary/5 cursor-default" : "hover:bg-slate-50"
                      )}
-                     <span className="absolute -top-1 -right-1 text-[8px] font-extrabold text-surface-400">{idx + 1}</span>
-                   </div>
-                   <div className="min-w-0">
-                      <p className={cn("text-xs font-bold truncate", isActive ? "text-primary" : "text-surface-700")}>
-                        {lesson.title}
-                      </p>
-                      <div className="flex items-center gap-2 mt-0.5">
-                         {lesson.type === 'VIDEO' && <PlayCircle className="w-3 h-3 text-surface-400" />}
-                         {lesson.type === 'DOCUMENT' && <FileText className="w-3 h-3 text-surface-400" />}
-                         {lesson.type === 'QUIZ' && <CheckCircle className="w-3 h-3 text-surface-400" />}
-                         <span className="text-[10px] font-medium text-surface-400 uppercase tracking-widest">{lesson.type}</span>
-                      </div>
-                   </div>
-                   {isActive && <div className="ml-auto w-1 h-6 bg-primary rounded-full shrink-0" />}
-                 </button>
-               );
-             })}
-          </div>
+                   >
+                     <div className="flex-shrink-0 relative">
+                       {isCompleted ? (
+                         <CheckCircle className="w-5 h-5 text-emerald-500" />
+                       ) : (
+                         <Circle className={cn("w-5 h-5", isActive ? "text-primary" : "text-surface-300")} />
+                       )}
+                       <span className="absolute -top-1 -right-1 text-[8px] font-extrabold text-surface-400">{idx + 1}</span>
+                     </div>
+                     <div className="min-w-0">
+                        <p className={cn("text-xs font-bold truncate", isActive ? "text-primary" : "text-surface-700")}>
+                          {lesson.title}
+                        </p>
+                        <div className="flex items-center gap-2 mt-0.5">
+                           {lesson.type === 'VIDEO' && <PlayCircle className="w-3 h-3 text-surface-400" />}
+                           {lesson.type === 'DOCUMENT' && <FileText className="w-3 h-3 text-surface-400" />}
+                           {lesson.type === 'QUIZ' && <CheckCircle className="w-3 h-3 text-surface-400" />}
+                           <span className="text-[10px] font-medium text-surface-400 uppercase tracking-widest">{lesson.type}</span>
+                        </div>
+                     </div>
+                     {isActive && <div className="ml-auto w-1 h-6 bg-primary rounded-full shrink-0" />}
+                   </button>
+                 );
+               })}
+            </div>
+           ) : (
+             <div className="flex-1 overflow-hidden">
+               <CourseReviews courseId={courseId as string} />
+             </div>
+           )}
         </aside>
       </div>
     </div>
