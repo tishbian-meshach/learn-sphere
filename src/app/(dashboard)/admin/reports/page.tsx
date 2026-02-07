@@ -125,6 +125,63 @@ export default function AdminReportsPage() {
     );
   }
 
+  const handleExportCsv = () => {
+    if (!filteredEnrollments || filteredEnrollments.length === 0) {
+      toast.error('No data available to export');
+      return;
+    }
+
+    const columnConfig = [
+      { key: 'sno', label: 'S.No.' },
+      { key: 'participantName', label: 'Participant Name' },
+      { key: 'courseName', label: 'Course Name' },
+      { key: 'enrolledDate', label: 'Enrolled Date' },
+      { key: 'startDate', label: 'Start Date' },
+      { key: 'timeSpent', label: 'Time Spent' },
+      { key: 'completionPercentage', label: 'Completion %' },
+      { key: 'completedDate', label: 'Completed Date' },
+      { key: 'status', label: 'Status' },
+    ];
+
+    const activeCols = columnConfig.filter(col => visibleColumns[col.key as keyof typeof visibleColumns]);
+    const headers = activeCols.map(col => col.label).join(',');
+
+    const rows = filteredEnrollments.map((e, index) => {
+      return activeCols.map(col => {
+        let val: any = '';
+        switch (col.key) {
+          case 'sno': val = index + 1; break;
+          case 'participantName': val = e.user.name; break;
+          case 'courseName': val = e.course.title; break;
+          case 'enrolledDate': val = new Date(e.enrolledAt).toLocaleDateString(); break;
+          case 'startDate': val = e.startedAt ? new Date(e.startedAt).toLocaleDateString() : '—'; break;
+          case 'timeSpent': 
+            const mins = e.timeSpent || 0;
+            val = `${Math.floor(mins / 60)}h ${mins % 60}m`;
+            break;
+          case 'completionPercentage': val = `${Math.round(e.progress)}%`; break;
+          case 'completedDate': val = e.completedAt ? new Date(e.completedAt).toLocaleDateString() : '—'; break;
+          case 'status': val = e.progress === 100 ? 'CERTIFIED' : e.progress > 0 ? 'IN PROGRESS' : 'NOT STARTED'; break;
+        }
+        // CSV Escaping
+        const escaped = ('' + (val ?? '')).replace(/"/g, '""');
+        return `"${escaped}"`;
+      }).join(',');
+    });
+
+    const csvContent = [headers, ...rows].join('\n');
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.setAttribute('href', url);
+    link.setAttribute('download', `performance_report_${new Date().toISOString().split('T')[0]}.csv`);
+    link.style.display = 'none';
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+  };
+
   return (
     <div className="max-w-screen-xl mx-auto space-y-8">
       {/* Header */}
@@ -134,7 +191,12 @@ export default function AdminReportsPage() {
           <p className="text-sm text-surface-500">Live monitoring of learner engagement and completion metrics.</p>
         </div>
         <div className="flex items-center gap-3">
-          <Button variant="outline" size="sm" leftIcon={<Download className="w-4 h-4" />}>
+          <Button 
+            variant="outline" 
+            size="sm" 
+            leftIcon={<Download className="w-4 h-4" />}
+            onClick={handleExportCsv}
+          >
              Export CSV
           </Button>
         </div>
@@ -291,7 +353,7 @@ export default function AdminReportsPage() {
                      {visibleColumns.startDate && (
                        <td className="px-4 py-4 whitespace-nowrap">
                           <p className="text-xs text-surface-500 font-medium">
-                             {e.startedAt ? new Date(e.startedAt).toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' }) : 'Invalid Date'}
+                             {e.startedAt ? new Date(e.startedAt).toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' }) : '—'}
                           </p>
                        </td>
                      )}
@@ -312,7 +374,7 @@ export default function AdminReportsPage() {
                      {visibleColumns.completedDate && (
                        <td className="px-4 py-4 whitespace-nowrap">
                           <p className="text-xs text-surface-500 font-medium">
-                             {e.completedAt ? new Date(e.completedAt).toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' }) : 'Invalid Date'}
+                             {e.completedAt ? new Date(e.completedAt).toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' }) : '—'}
                           </p>
                        </td>
                      )}
