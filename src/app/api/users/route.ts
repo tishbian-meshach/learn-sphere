@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
+import { getCurrentUser } from '@/lib/auth-helpers';
 
 export const dynamic = 'force-dynamic';
 
@@ -80,6 +81,17 @@ export async function GET(request: NextRequest) {
     const { searchParams } = new URL(request.url);
     const role = searchParams.get('role');
     const email = searchParams.get('email');
+
+    // Get current user
+    const currentUser = await getCurrentUser(request);
+
+    // Instructors cannot access user list
+    if (currentUser?.role === 'INSTRUCTOR') {
+      return NextResponse.json(
+        { error: 'Unauthorized. Instructors cannot access platform user management.' },
+        { status: 403 }
+      );
+    }
 
     if (email) {
       const user = await prisma.user.findUnique({

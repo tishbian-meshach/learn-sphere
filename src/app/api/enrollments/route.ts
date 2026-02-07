@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
+import { getCurrentUser } from '@/lib/auth-helpers';
 
 export const dynamic = 'force-dynamic';
 
@@ -10,11 +11,24 @@ export async function GET(request: NextRequest) {
     const userId = searchParams.get('userId');
     const courseId = searchParams.get('courseId');
 
+    // Get current user to enforce role-based filtering
+    const currentUser = await getCurrentUser(request);
+
+    // Build where clause based on role
+    let whereClause: any = {
+      ...(userId && { userId }),
+      ...(courseId && { courseId }),
+    };
+
+    // Instructors can only view enrollments for their own courses
+    if (currentUser?.role === 'INSTRUCTOR') {
+      whereClause.course = {
+        instructorId: currentUser.id,
+      };
+    }
+
     const enrollments = await prisma.enrollment.findMany({
-      where: {
-        ...(userId && { userId }),
-        ...(courseId && { courseId }),
-      },
+      where: whereClause,
       include: {
         user: {
           select: { id: true, name: true, email: true, avatarUrl: true },
@@ -46,6 +60,32 @@ export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
     const { userId, courseId } = body;
+
+    // Get current user
+    const currentUser = await getCurrentUser(request);
+    
+    if (!currentUser) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+
+    // Instructors can only enroll learners in their own courses
+    if (currentUser.role === 'INSTRUCTOR') {
+      const course = await prisma.course.findUnique({
+        where: { id: courseId },
+        select: { instructorId: true },
+      });
+
+      if (!course) {
+        return NextResponse.json({ error: 'Course not found' }, { status: 404 });
+      }
+
+      if (course.instructorId !== currentUser.id) {
+        return NextResponse.json(
+          { error: 'Unauthorized. You can only enroll learners in your own courses.' },
+          { status: 403 }
+        );
+      }
+    }
 
     // Check if already enrolled
     const existing = await prisma.enrollment.findUnique({

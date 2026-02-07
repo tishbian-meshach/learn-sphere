@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
+import { getCurrentUser } from '@/lib/auth-helpers';
 
 export const dynamic = 'force-dynamic';
 
@@ -12,13 +13,23 @@ export async function GET(request: NextRequest) {
     const instructorId = searchParams.get('instructorId');
     const userId = searchParams.get('userId');
 
+    // Get current user to enforce role-based filtering
+    const currentUser = await getCurrentUser(request);
+    
+    // If instructor, only show their own courses
+    const instructorFilter = currentUser?.role === 'INSTRUCTOR' 
+      ? { instructorId: currentUser.id }
+      : instructorId 
+        ? { instructorId }
+        : {};
+
     const courses = await prisma.course.findMany({
       where: {
         ...(search && {
           title: { contains: search, mode: 'insensitive' },
         }),
         ...(published !== null && { isPublished: published === 'true' }),
-        ...(instructorId && { instructorId }),
+        ...instructorFilter,
       },
       include: {
         instructor: {

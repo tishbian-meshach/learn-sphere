@@ -105,6 +105,11 @@ export default function CourseEditPage() {
       if (res.ok) {
         const data = await res.json();
         setCourse(data);
+      } else if (res.status === 403) {
+        toast.error('Unauthorized. You can only view your own courses.');
+        router.push('/admin/courses');
+      } else {
+        toast.error('Failed to load course details');
       }
     } catch (error) {
       toast.error('Failed to load course details');
@@ -142,6 +147,10 @@ export default function CourseEditPage() {
         const updated = await res.json();
         setCourse(updated);
         toast.success('Changes synchronized');
+      } else if (res.status === 403) {
+        toast.error('Unauthorized. You can only edit your own courses.');
+      } else {
+        toast.error('Synchronization failed');
       }
     } catch (error) {
       toast.error('Synchronization failed');

@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
+import { getCurrentUser } from '@/lib/auth-helpers';
 
 export const dynamic = 'force-dynamic';
 
@@ -9,6 +10,9 @@ export async function GET(
   { params }: { params: { id: string } }
 ) {
   try {
+    // Get current user to enforce role-based access
+    const currentUser = await getCurrentUser(request);
+    
     const course = await prisma.course.findUnique({
       where: { id: params.id },
       include: {
@@ -48,6 +52,11 @@ export async function GET(
       return NextResponse.json({ error: 'Course not found' }, { status: 404 });
     }
 
+    // Instructors can only view their own courses
+    if (currentUser?.role === 'INSTRUCTOR' && course.instructorId !== currentUser.id) {
+      return NextResponse.json({ error: 'Unauthorized. You can only view your own courses.' }, { status: 403 });
+    }
+
     // Increment view count
     await prisma.course.update({
       where: { id: params.id },
@@ -78,6 +87,32 @@ export async function PUT(
   { params }: { params: { id: string } }
 ) {
   try {
+    // Get current user
+    const currentUser = await getCurrentUser(request);
+    
+    if (!currentUser) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+
+    // Check ownership for instructors
+    if (currentUser.role === 'INSTRUCTOR') {
+      const course = await prisma.course.findUnique({
+        where: { id: params.id },
+        select: { instructorId: true },
+      });
+
+      if (!course) {
+        return NextResponse.json({ error: 'Course not found' }, { status: 404 });
+      }
+
+      if (course.instructorId !== currentUser.id) {
+        return NextResponse.json(
+          { error: 'Unauthorized. You can only edit your own courses.' },
+          { status: 403 }
+        );
+      }
+    }
+
     const body = await request.json();
     const {
       title,
@@ -140,6 +175,32 @@ export async function DELETE(
   { params }: { params: { id: string } }
 ) {
   try {
+    // Get current user
+    const currentUser = await getCurrentUser(request);
+    
+    if (!currentUser) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+
+    // Check ownership for instructors
+    if (currentUser.role === 'INSTRUCTOR') {
+      const course = await prisma.course.findUnique({
+        where: { id: params.id },
+        select: { instructorId: true },
+      });
+
+      if (!course) {
+        return NextResponse.json({ error: 'Course not found' }, { status: 404 });
+      }
+
+      if (course.instructorId !== currentUser.id) {
+        return NextResponse.json(
+          { error: 'Unauthorized. You can only delete your own courses.' },
+          { status: 403 }
+        );
+      }
+    }
+
     await prisma.course.delete({
       where: { id: params.id },
     });

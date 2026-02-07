@@ -1,6 +1,7 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
+import { useRouter } from 'next/navigation';
 import {
   Settings,
   Shield,
@@ -16,6 +17,7 @@ import {
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { useAuth } from '@/hooks/use-auth';
 import { cn } from '@/lib/utils';
 import toast from 'react-hot-toast';
 
@@ -27,8 +29,18 @@ const settingsNav = [
 ];
 
 export default function AdminSettingsPage() {
+  const router = useRouter();
+  const { profile } = useAuth();
   const [activeTab, setActiveTab] = useState('organization');
   const [isSaving, setIsSaving] = useState(false);
+
+  // Redirect instructors away from this page
+  useEffect(() => {
+    if (profile && profile.role === 'INSTRUCTOR') {
+      toast.error('Unauthorized. Instructors cannot access platform settings.');
+      router.push('/admin/courses');
+    }
+  }, [profile, router]);
 
   const handleSave = () => {
     setIsSaving(true);

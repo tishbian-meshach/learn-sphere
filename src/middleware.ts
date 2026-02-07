@@ -52,6 +52,31 @@ export async function middleware(request: NextRequest) {
     return NextResponse.redirect(url);
   }
 
+  // Role-based route protection for instructors
+  if (user) {
+    // Fetch user role from API
+    const userRes = await fetch(`${request.nextUrl.origin}/api/users/${user.id}`, {
+      headers: {
+        cookie: request.headers.get('cookie') || '',
+      },
+    });
+
+    if (userRes.ok) {
+      const userProfile = await userRes.json();
+      
+      // Block instructors from admin-only routes
+      const instructorBlockedRoutes = ['/admin/users', '/admin/settings'];
+      const isInstructorBlockedRoute = instructorBlockedRoutes.some((route) => pathname.startsWith(route));
+      
+      if (userProfile.role === 'INSTRUCTOR' && isInstructorBlockedRoute) {
+        return NextResponse.json(
+          { error: 'Unauthorized. Instructors cannot access this page.' },
+          { status: 403 }
+        );
+      }
+    }
+  }
+
   // Redirect logged in users away from auth pages
   if (user && (pathname === '/sign-in' || pathname === '/sign-up')) {
     // If we have a user and they are on sign-in/sign-up, they should be redirected

@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
+import { getCurrentUser } from '@/lib/auth-helpers';
 
 export const dynamic = 'force-dynamic';
 
@@ -9,6 +10,28 @@ export async function GET(
   { params }: { params: { id: string } }
 ) {
   try {
+    // Get current user to enforce role-based access
+    const currentUser = await getCurrentUser(request);
+    
+    // Instructors can only view lessons from their own courses
+    if (currentUser?.role === 'INSTRUCTOR') {
+      const course = await prisma.course.findUnique({
+        where: { id: params.id },
+        select: { instructorId: true },
+      });
+
+      if (!course) {
+        return NextResponse.json({ error: 'Course not found' }, { status: 404 });
+      }
+
+      if (course.instructorId !== currentUser.id) {
+        return NextResponse.json(
+          { error: 'Unauthorized. You can only view lessons from your own courses.' },
+          { status: 403 }
+        );
+      }
+    }
+
     const lessons = await prisma.lesson.findMany({
       where: { courseId: params.id },
       orderBy: { orderIndex: 'asc' },
@@ -36,6 +59,32 @@ export async function POST(
   { params }: { params: { id: string } }
 ) {
   try {
+    // Get current user
+    const currentUser = await getCurrentUser(request);
+    
+    if (!currentUser) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+
+    // Instructors can only add lessons to their own courses
+    if (currentUser.role === 'INSTRUCTOR') {
+      const course = await prisma.course.findUnique({
+        where: { id: params.id },
+        select: { instructorId: true },
+      });
+
+      if (!course) {
+        return NextResponse.json({ error: 'Course not found' }, { status: 404 });
+      }
+
+      if (course.instructorId !== currentUser.id) {
+        return NextResponse.json(
+          { error: 'Unauthorized. You can only add lessons to your own courses.' },
+          { status: 403 }
+        );
+      }
+    }
+
     const body = await request.json();
     const {
       title,

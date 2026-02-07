@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import { useRouter } from 'next/navigation';
 import {
   Users,
   Search,
@@ -12,12 +13,14 @@ import {
   Plus,
   ArrowUpDown,
   UserCircle,
+  AlertTriangle,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { Avatar } from '@/components/ui/avatar';
 import { DropdownMenu, DropdownMenuItem } from '@/components/ui/dropdown-menu';
+import { useAuth } from '@/hooks/use-auth';
 import toast from 'react-hot-toast';
 
 interface User {
@@ -32,13 +35,25 @@ interface User {
 }
 
 export default function UsersManagementPage() {
+  const router = useRouter();
+  const { profile } = useAuth();
   const [users, setUsers] = useState<User[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
 
+  // Redirect instructors away from this page
   useEffect(() => {
-    fetchUsers();
-  }, []);
+    if (profile && profile.role === 'INSTRUCTOR') {
+      toast.error('Unauthorized. Instructors cannot access platform user management.');
+      router.push('/admin/courses');
+    }
+  }, [profile, router]);
+
+  useEffect(() => {
+    if (profile?.role === 'ADMIN') {
+      fetchUsers();
+    }
+  }, [profile]);
 
   const fetchUsers = async () => {
     try {
@@ -46,6 +61,9 @@ export default function UsersManagementPage() {
       if (res.ok) {
         const data = await res.json();
         setUsers(data);
+      } else if (res.status === 403) {
+        toast.error('Unauthorized access');
+        router.push('/admin/courses');
       }
     } catch (error) {
       toast.error('Failed to load user registry');

@@ -21,10 +21,10 @@ import { useAuth } from '@/hooks/use-auth';
 import { cn } from '@/lib/utils';
 
 const navItems = [
-  { id: 'courses', label: 'Course Library', icon: BookOpen, href: '/admin/courses' },
-  { id: 'reports', label: 'Performance', icon: PieChart, href: '/admin/reports' },
-  { id: 'users', label: 'Platform Users', icon: Users, href: '/admin/users' },
-  { id: 'settings', label: 'Organization', icon: Settings, href: '/admin/settings' },
+  { id: 'courses', label: 'Course Library', icon: BookOpen, href: '/admin/courses', roles: ['ADMIN', 'INSTRUCTOR'] },
+  { id: 'reports', label: 'Performance', icon: PieChart, href: '/admin/reports', roles: ['ADMIN', 'INSTRUCTOR'] },
+  { id: 'users', label: 'Platform Users', icon: Users, href: '/admin/users', roles: ['ADMIN'] },
+  { id: 'settings', label: 'Organization', icon: Settings, href: '/admin/settings', roles: ['ADMIN'] },
 ];
 
 export function AdminSidebar() {
@@ -38,6 +38,11 @@ export function AdminSidebar() {
     await signOut();
     router.push('/sign-in');
   };
+
+  // Filter nav items based on user role
+  const filteredNavItems = navItems.filter(item => 
+    profile?.role && item.roles.includes(profile.role)
+  );
 
   return (
     <>
@@ -81,7 +86,7 @@ export function AdminSidebar() {
 
         {/* Navigation */}
         <div className="flex-1 py-4 px-2 space-y-1 overflow-y-auto">
-          {navItems.map((item) => {
+          {filteredNavItems.map((item) => {
             const isActive = pathname.startsWith(item.href);
             return (
               <Link
