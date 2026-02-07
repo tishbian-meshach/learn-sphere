@@ -71,6 +71,7 @@ export default function LessonPlayerPage() {
   const [course, setCourse] = useState<Course | null>(null);
   const [activeLessonId, setActiveLessonId] = useState<string | null>(null);
   const [completedLessons, setCompletedLessons] = useState<Set<string>>(new Set());
+  const [lessonProgress, setLessonProgress] = useState<Record<string, { timeSpent: number; isCompleted: boolean }>>({}); 
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
   const [isLoading, setIsLoading] = useState(true);
 
@@ -144,6 +145,16 @@ export default function LessonPlayerPage() {
 
         setCourse(courseData);
         setCompletedLessons(new Set((progressData || []).map((p: any) => p.lessonId)));
+        
+        // Store progress data with time spent for each lesson
+        const progressMap: Record<string, { timeSpent: number; isCompleted: boolean }> = {};
+        (progressData || []).forEach((p: any) => {
+          progressMap[p.lessonId] = {
+            timeSpent: p.timeSpent || 0,
+            isCompleted: p.isCompleted || false
+          };
+        });
+        setLessonProgress(progressMap);
 
         if (courseData.lessons && courseData.lessons.length > 0 && !activeLessonId) {
           setActiveLessonId(courseData.lessons[0].id);
@@ -838,6 +849,20 @@ export default function LessonPlayerPage() {
               {(course.lessons || []).sort((a: any, b: any) => a.orderIndex - b.orderIndex).map((lesson, idx) => {
                 const isActive = lesson.id === activeLessonId;
                 const isCompleted = completedLessons.has(lesson.id);
+                const progressData = lessonProgress[lesson.id];
+                const timeSpent = progressData?.timeSpent || 0;
+                
+                // Format time spent as xx:xx or xx:xx:xx
+                const formatTime = (seconds: number) => {
+                  const hrs = Math.floor(seconds / 3600);
+                  const mins = Math.floor((seconds % 3600) / 60);
+                  const secs = seconds % 60;
+                  
+                  if (hrs > 0) {
+                    return `${hrs.toString().padStart(2, '0')}:${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
+                  }
+                  return `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
+                };
 
                 return (
                   <button
@@ -856,7 +881,7 @@ export default function LessonPlayerPage() {
                       )}
                       <span className="absolute -top-1 -right-1 text-[8px] font-extrabold text-surface-400">{idx + 1}</span>
                     </div>
-                    <div className="min-w-0">
+                    <div className="min-w-0 flex-1">
                       <p className={cn("text-xs font-bold truncate", isActive ? "text-primary" : "text-surface-700")}>
                         {lesson.title}
                       </p>
@@ -865,6 +890,13 @@ export default function LessonPlayerPage() {
                         {lesson.type === 'DOCUMENT' && <FileText className="w-3 h-3 text-surface-400" />}
                         {lesson.type === 'QUIZ' && <CheckCircle className="w-3 h-3 text-surface-400" />}
                         <span className="text-[10px] font-medium text-surface-400 uppercase tracking-widest">{lesson.type}</span>
+                        {timeSpent > 0 && (
+                          <>
+                            <span className="text-[10px] font-medium text-surface-300">•</span>
+                            <span className="text-[10px] font-medium text-surface-500">Time spent -</span>
+                            <span className="text-[10px] font-bold text-amber-700">{formatTime(timeSpent)}</span>
+                          </>
+                        )}
                       </div>
                     </div>
                     {isActive && <div className="ml-auto w-1 h-6 bg-primary rounded-full shrink-0" />}
