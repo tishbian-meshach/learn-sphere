@@ -42,6 +42,8 @@ import { Certificate } from '@/components/shared/Certificate';
 import { useAuth } from '@/hooks/use-auth';
 import { cn } from '@/lib/utils';
 import toast from 'react-hot-toast';
+import ReactMarkdown from 'react-markdown';
+import remarkGfm from 'remark-gfm';
 
 interface Lesson {
   id: string;
@@ -78,7 +80,8 @@ export default function LessonPlayerPage() {
   // Quiz Player State
   const [quizData, setQuizData] = useState<any>(null);
   const [isLoadingQuiz, setIsLoadingQuiz] = useState(false);
-  const [isSubmittingQuiz, setIsSubmittingQuiz] = useState(false);
+  const [isSubmittingQuiz, setIsLoadingQuizQuiz] = useState(false);
+  const [isSubmittingQuizState, setIsSubmittingQuiz] = useState(false);
   const [isQuestionVerified, setIsQuestionVerified] = useState(false);
   const [quizPhase, setQuizPhase] = useState<'INTRO' | 'PLAYING' | 'RESULTS'>('INTRO');
   const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0);
@@ -129,7 +132,7 @@ export default function LessonPlayerPage() {
     const videoExtensions = ['.mp4', '.webm', '.ogg'];
     return videoExtensions.some(ext => url.toLowerCase().endsWith(ext)) ||
       url.includes('supabase.co/storage/v1/object/public/') ||
-      url.includes('googleusercontent.com'); // Handles some external direct links
+      url.includes('googleusercontent.com');
   };
 
   const fetchCourseAndProgress = async () => {
@@ -160,12 +163,10 @@ export default function LessonPlayerPage() {
           setActiveLessonId(courseData.lessons[0].id);
         }
 
-        // Check if user has access to this course
         const accessCheckRes = await fetch(`/api/enrollments/check-access?courseId=${courseId}`);
         const accessData = await accessCheckRes.json();
 
         if (!accessData.hasAccess) {
-          // If payment required, redirect to payment or show error
           if (accessData.reason === 'PAYMENT_REQUIRED') {
             toast.error('This is a paid course. Please complete payment to access.');
             router.push(`/learner/courses`);
@@ -177,11 +178,9 @@ export default function LessonPlayerPage() {
           }
         }
 
-        // Check if user is already enrolled
         const enrollCheckRes = await fetch(`/api/enrollments?userId=${user?.id}&courseId=${courseId}`);
         const enrollments = await enrollCheckRes.json();
 
-        // Only auto-enroll for FREE/OPEN courses
         if ((!enrollments || enrollments.length === 0) && courseData.accessRule === 'OPEN') {
           await fetch('/api/enrollments', {
             method: 'POST',
@@ -197,11 +196,6 @@ export default function LessonPlayerPage() {
     }
   };
 
-  useEffect(() => {
-    if (activeTab === 'reviews') {
-      // No need to fetch reviews here, component handles it
-    }
-  }, [activeTab]);
   const activeLesson = course?.lessons?.find(l => l.id === activeLessonId);
   const activeIndex = course?.lessons?.findIndex(l => l.id === activeLessonId) ?? 0;
 
@@ -215,9 +209,6 @@ export default function LessonPlayerPage() {
     setIsQuestionVerified(false);
 
     try {
-      // Find the quiz linked to this lesson
-      // Quizzes are 1:1 with lessons, but we need the quiz ID
-      // We'll fetch it from an endpoint that finds it by lessonId
       const res = await fetch(`/api/quizzes/by-lesson/${lessonId}?userId=${user?.id}`);
       if (res.ok) {
         const data = await res.json();
@@ -271,7 +262,6 @@ export default function LessonPlayerPage() {
       setSelectedOptionIndex(null);
       setIsQuestionVerified(false);
     } else {
-      // Finalize Quiz
       handleSubmitQuiz();
     }
   };
@@ -281,7 +271,6 @@ export default function LessonPlayerPage() {
     setIsSubmittingQuiz(true);
 
     try {
-      // Calculate final score including the last question
       const currentQuestion = quizData.questions[currentQuestionIndex];
       if (!currentQuestion) return;
       const finalScore = score + (currentQuestion.options[selectedOptionIndex!].isCorrect ? 1 : 0);
@@ -292,7 +281,6 @@ export default function LessonPlayerPage() {
         body: JSON.stringify({
           userId: user.id,
           score: finalScore,
-          // We can add detailed answers here if needed later
         })
       });
 
@@ -305,12 +293,10 @@ export default function LessonPlayerPage() {
         setQuizPhase('RESULTS');
 
         if (isPassed) {
-          // Mark lesson as completed in local state
           setCompletedLessons(prev => {
             const next = new Set(Array.from(prev));
             next.add(activeLessonId!);
 
-            // Check for total course completion
             if (course && next.size === course.lessons.length && !hasShownCompletion) {
               setIsCompletionModalOpen(true);
               setHasShownCompletion(true);
@@ -318,7 +304,6 @@ export default function LessonPlayerPage() {
             return next;
           });
 
-          // Sync with backend
           fetch('/api/progress', {
             method: 'PUT',
             headers: { 'Content-Type': 'application/json' },
@@ -368,7 +353,6 @@ export default function LessonPlayerPage() {
           const next = new Set(Array.from(prev));
           if (!next.has(activeLessonId)) {
             next.add(activeLessonId);
-            // Check for total course completion
             if (course && next.size === course.lessons.length && !hasShownCompletion) {
               setIsCompletionModalOpen(true);
               setHasShownCompletion(true);
@@ -379,7 +363,6 @@ export default function LessonPlayerPage() {
         setSessionTime(0);
         toast.success('Module unit certified');
 
-        // Auto-navigate to next
         if (course && course.lessons && activeIndex < course.lessons.length - 1) {
           setActiveLessonId(course.lessons[activeIndex + 1].id);
         }
@@ -409,7 +392,6 @@ export default function LessonPlayerPage() {
     );
   }
 
-  // Handle courses with no lessons
   if (!course.lessons || course.lessons.length === 0) {
     return (
       <div className="h-screen flex flex-col bg-white overflow-hidden">
@@ -435,7 +417,6 @@ export default function LessonPlayerPage() {
 
   return (
     <div className="h-screen flex flex-col bg-white overflow-hidden">
-      {/* Immersive Header */}
       <header className="h-12 border-b border-border bg-white px-4 flex items-center justify-between z-20">
         <div className="flex items-center gap-4">
           <Button variant="ghost" size="icon-sm" onClick={() => router.push('/learner/my-courses')}>
@@ -466,10 +447,8 @@ export default function LessonPlayerPage() {
       </header>
 
       <div className="flex-1 flex overflow-hidden">
-        {/* Main Content Area */}
         <main className="flex-1 flex flex-col overflow-y-auto bg-slate-50/50">
           <div className="max-w-4xl mx-auto w-full p-4 md:p-8 space-y-8">
-            {/* Content Carrier */}
             <div className="card shadow-none p-0 overflow-hidden bg-white">
               {activeLesson?.type === 'VIDEO' ? (
                 <div className="aspect-video bg-surface-900 flex items-center justify-center relative">
@@ -562,7 +541,6 @@ export default function LessonPlayerPage() {
                             if (isQuestionVerified) {
                               if (isSelected && isCorrect) buttonState = "correct";
                               else if (isSelected && !isCorrect) buttonState = "incorrect";
-                              // We no longer reveal the correct answer if the user didn't pick it
                             } else if (isSelected) {
                               buttonState = "selected";
                             }
@@ -621,7 +599,7 @@ export default function LessonPlayerPage() {
                         ) : (
                           <Button
                             size="lg"
-                            isLoading={isSubmittingQuiz}
+                            isLoading={isSubmittingQuizState}
                             onClick={handleProceed}
                             rightIcon={<ChevronRight className="w-5 h-5" />}
                           >
@@ -657,12 +635,12 @@ export default function LessonPlayerPage() {
                         <div className="space-y-1">
                           <p className="text-[10px] font-extrabold text-surface-400 uppercase tracking-widest text-left">Precision Score</p>
                           <div className="flex items-baseline gap-2">
-                            <p className="text-2xl font-extrabold text-surface-900">{quizResults?.score}/{quizData.questions.length}</p>
+                            <p className="text-2xl font-extrabold text-surface-900">{quizResults?.score}/{quizData.questions?.length}</p>
                             <span className={cn(
                               "text-[10px] font-bold px-1.5 py-0.5 rounded uppercase",
                               quizResults?.isPassed ? "bg-emerald-100 text-emerald-700" : "bg-rose-100 text-rose-700"
                             )}>
-                              {((quizResults?.score / quizData.questions.length) * 100).toFixed(0)}%
+                              {((quizResults?.score / (quizData.questions?.length || 1)) * 100).toFixed(0)}%
                             </span>
                           </div>
                         </div>
@@ -703,11 +681,12 @@ export default function LessonPlayerPage() {
                   </div>
                 )}
 
-                <div className="text-surface-700 leading-relaxed whitespace-pre-wrap">
-                  {activeLesson?.description || "This unit has no textual exposition provided."}
+                <div className="prose prose-slate prose-indigo max-w-none prose-headings:font-black prose-headings:tracking-tight prose-a:text-primary prose-strong:text-surface-900">
+                  <ReactMarkdown remarkPlugins={[remarkGfm]}>
+                    {(activeLesson?.description || "").replace(/^#([^\s#])/gm, '# $1')}
+                  </ReactMarkdown>
                 </div>
 
-                {/* Rich Preview Section */}
                 <div className="mt-8 space-y-6">
                   {activeLesson?.type === 'DOCUMENT' && activeLesson.documentUrl && (
                     <div className="space-y-4">
@@ -755,7 +734,6 @@ export default function LessonPlayerPage() {
               </div>
             </div>
 
-            {/* Supplementary Attachments */}
             {activeLesson?.attachments && activeLesson.attachments.length > 0 && (
               <div className="space-y-4">
                 <h3 className="text-xs font-extrabold text-surface-400 uppercase tracking-widest flex items-center gap-2">
@@ -782,7 +760,6 @@ export default function LessonPlayerPage() {
               </div>
             )}
 
-            {/* Footer Actions */}
             <div className="flex items-center justify-between py-6 border-t border-border">
               <Button
                 variant="outline"
@@ -818,7 +795,6 @@ export default function LessonPlayerPage() {
           </div>
         </main>
 
-        {/* Dense Sidebar - Curriculum */}
         <aside className={cn(
           "border-l border-border bg-white transition-all duration-300 overflow-hidden flex flex-col",
           isSidebarOpen ? "w-80" : "w-0"
@@ -904,7 +880,6 @@ export default function LessonPlayerPage() {
                 );
               })}
 
-              {/* Certificate Section for Completed Course */}
               {course.lessons.length > 0 && completedLessons.size === course.lessons.length && (
                 <div className="p-4 border-t border-border bg-slate-50/50">
                   <div className="space-y-3">
@@ -938,7 +913,6 @@ export default function LessonPlayerPage() {
         </aside>
       </div>
 
-      {/* Achievement Recognition Modal */}
       <CourseCompletionModal
         isOpen={isCompletionModalOpen}
         onClose={() => setIsCompletionModalOpen(false)}
@@ -949,7 +923,6 @@ export default function LessonPlayerPage() {
         certificateId={`CRT-${courseId?.toString().slice(-6).toUpperCase()}-${user?.id.slice(-6).toUpperCase()}`}
       />
 
-      {/* Manual Certificate Trigger */}
       {isCertificateOpen && user && (
         <Certificate
           userName={profile?.name || 'Authorized Practitioner'}

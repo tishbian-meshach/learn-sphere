@@ -77,7 +77,92 @@ const config: Config = {
       },
     },
   },
-  plugins: [],
+  plugins: [
+    require('@tailwindcss/typography'),
+  ],
+  typography: (theme: any) => ({
+    DEFAULT: {
+      css: {
+        color: theme('colors.surface.700'),
+        maxWidth: 'none',
+        hr: {
+          borderColor: theme('colors.surface.200'),
+          marginTop: '2em',
+          marginBottom: '2em',
+        },
+        'h1, h2, h3, h4': {
+          color: theme('colors.surface.900'),
+          fontWeight: '900',
+          letterSpacing: '-0.025em',
+          marginTop: '1.5em',
+          marginBottom: '0.5em',
+        },
+        h1: {
+          fontSize: '2.25rem',
+          lineHeight: '2.5rem',
+        },
+        h2: {
+          fontSize: '1.875rem',
+          lineHeight: '2.25rem',
+        },
+        h3: {
+          fontSize: '1.5rem',
+          lineHeight: '2rem',
+        },
+        h4: {
+          fontSize: '1.25rem',
+          lineHeight: '1.75rem',
+        },
+        a: {
+          color: theme('colors.primary.600'),
+          textDecoration: 'none',
+          fontWeight: '600',
+          transition: 'color 0.15s ease-in-out',
+          '&:hover': {
+            color: theme('colors.primary.700'),
+            textDecoration: 'underline',
+          },
+        },
+        'strong, b': {
+          color: theme('colors.surface.900'),
+          fontWeight: '800',
+        },
+        'ol > li::before': {
+          color: theme('colors.surface.400'),
+          fontWeight: '700',
+        },
+        'ul > li::marker': {
+          color: theme('colors.surface.400'),
+        },
+        code: {
+          color: theme('colors.primary.700'),
+          backgroundColor: theme('colors.primary.50'),
+          paddingLeft: '0.4rem',
+          paddingRight: '0.4rem',
+          paddingTop: '0.2rem',
+          paddingBottom: '0.2rem',
+          borderRadius: '0.375rem',
+          fontWeight: '600',
+          fontSize: '0.875em',
+        },
+        'code::before': {
+          content: 'none',
+        },
+        'code::after': {
+          content: 'none',
+        },
+        blockquote: {
+          borderLeftWidth: '4px',
+          borderLeftColor: theme('colors.primary.200'),
+          color: theme('colors.surface.600'),
+          fontStyle: 'italic',
+          paddingLeft: '1.5rem',
+          backgroundColor: theme('colors.surface.50'),
+          borderRadius: '0 0.5rem 0.5rem 0',
+        },
+      },
+    },
+  }),
 };
 
 export default config;

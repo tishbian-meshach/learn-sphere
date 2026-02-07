@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { DragDropContext, Droppable, Draggable, DropResult, DroppableProvided, DraggableProvided } from '@hello-pangea/dnd';
 import { useRouter, useParams } from 'next/navigation';
 import {
@@ -16,6 +16,7 @@ import {
   Image as ImageIcon,
   HelpCircle,
   Eye,
+  EyeOff,
   Settings as SettingsIcon,
   Layout,
   Globe,
@@ -33,8 +34,16 @@ import {
   Copy,
   ExternalLink as ExternalLinkIcon,
   AlertTriangle,
+  Bold,
+  Italic,
+  List,
+  ListOrdered,
+  Type,
+  Link as LinkIcon,
 } from 'lucide-react';
 import Link from 'next/link';
+import ReactMarkdown from 'react-markdown';
+import remarkGfm from 'remark-gfm';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
@@ -136,13 +145,48 @@ export default function CourseEditPage() {
   const [isDeleteQuizDialogOpen, setIsDeleteQuizDialogOpen] = useState(false);
   const [quizToDeleteId, setQuizToDeleteId] = useState<string | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
+  const [isPreviewMode, setIsPreviewMode] = useState(false);
+  const descriptionRef = useRef<HTMLTextAreaElement>(null);
+
+  const applyFormatting = (prefix: string, suffix: string = '', defaultText: string = '') => {
+    const textarea = descriptionRef.current;
+    if (!textarea) return;
+
+    const start = textarea.selectionStart;
+    const end = textarea.selectionEnd;
+    const text = lessonForm.description || '';
+    const selectedText = text.substring(start, end) || defaultText;
+
+    // Check if we need to prepend extra newlines for block elements (headings, lists)
+    const isBlockElement = prefix.startsWith('#') || prefix.startsWith('-') || prefix.match(/^\d+\./);
+    let finalPrefix = prefix;
+
+    if (isBlockElement && start > 0) {
+      const charBefore = text.charAt(start - 1);
+      if (charBefore !== '\n') {
+        finalPrefix = '\n\n' + prefix;
+      } else if (start > 1 && text.charAt(start - 2) !== '\n') {
+        finalPrefix = '\n' + prefix;
+      }
+    }
+
+    const newText = text.substring(0, start) + finalPrefix + selectedText + suffix + text.substring(end);
+    setLessonForm(prev => ({ ...prev, description: newText }));
+
+    // Re-focus and set selection
+    setTimeout(() => {
+      textarea.focus();
+      const newCursorPos = start + finalPrefix.length + selectedText.length + suffix.length;
+      textarea.setSelectionRange(newCursorPos, newCursorPos);
+    }, 0);
+  };
 
   const formatTime = (seconds: number) => {
     if (!seconds) return '0s';
     const h = Math.floor(seconds / 3600);
     const m = Math.floor((seconds % 3600) / 60);
     const s = seconds % 60;
-    
+
     if (h > 0) return `${h}h ${m}m`;
     if (m > 0) return `${m}m ${s}s`;
     return `${s}s`;
@@ -619,20 +663,20 @@ export default function CourseEditPage() {
                     <DragDropContext onDragEnd={onDragEnd}>
                       <Droppable droppableId="lessons">
                         {(provided: DroppableProvided) => (
-                          <div 
-                            {...provided.droppableProps} 
-                            ref={provided.innerRef} 
+                          <div
+                            {...provided.droppableProps}
+                            ref={provided.innerRef}
                             className="space-y-2"
                           >
                             {[...course.lessons].sort((a, b) => a.orderIndex - b.orderIndex).map((lesson, index) => (
                               <Draggable key={lesson.id} draggableId={lesson.id} index={index}>
                                 {(provided: DraggableProvided) => (
-                                  <div 
+                                  <div
                                     ref={provided.innerRef}
                                     {...provided.draggableProps}
                                     className="flex items-center gap-3 p-3 bg-white border border-border rounded-md hover:border-surface-300 transition-all group shadow-sm sm:shadow-none"
                                   >
-                                    <div 
+                                    <div
                                       {...provided.dragHandleProps}
                                       className="cursor-grab text-surface-300 group-hover:text-surface-500 active:cursor-grabbing p-1"
                                     >
@@ -1047,7 +1091,7 @@ export default function CourseEditPage() {
                               <td className="px-4 py-3">
                                 <div className="flex flex-col gap-1">
                                   <span className="text-xs font-bold text-surface-900">{formatTime(attendee.timeSpent)}</span>
-                                  <button 
+                                  <button
                                     onClick={() => {
                                       setSelectedAttendee(attendee);
                                       setIsTimeBreakdownOpen(true);
@@ -1281,13 +1325,91 @@ export default function CourseEditPage() {
             </TabPanel>
 
             <TabPanel isActive={editorTab === 'lesson-desc'}>
-              <Textarea
-                label="Unit Exposition"
-                value={lessonForm.description || ''}
-                onChange={(e) => setLessonForm(prev => ({ ...prev, description: e.target.value }))}
-                rows={8}
-                placeholder="Provide technical context and learning objectives for this module..."
-              />
+              <div className="space-y-4">
+                <div className="flex items-center justify-between border-b border-border pb-2 mb-2">
+                  <div className="flex items-center gap-4">
+                    <span className="text-[10px] font-extrabold text-surface-400 uppercase tracking-widest">Formatting Guide</span>
+                    <div className="flex items-center gap-2">
+                      <button
+                        title="Bold: **text**"
+                        className="p-1.5 hover:bg-slate-100 rounded text-surface-600 transition-colors"
+                        onClick={() => applyFormatting('**', '**', 'Bold Text')}
+                      >
+                        <Bold className="w-3.5 h-3.5" />
+                      </button>
+                      <button
+                        title="Italic: *text*"
+                        className="p-1.5 hover:bg-slate-100 rounded text-surface-600 transition-colors"
+                        onClick={() => applyFormatting('*', '*', 'Italic Text')}
+                      >
+                        <Italic className="w-3.5 h-3.5" />
+                      </button>
+                      <button
+                        title="Heading 1: # text"
+                        className="p-1.5 hover:bg-slate-100 rounded text-surface-600 transition-colors"
+                        onClick={() => applyFormatting('# ', '', 'Heading 1')}
+                      >
+                        <Type className="w-3.5 h-3.5" />
+                      </button>
+                      <button
+                        title="Link: [text](url)"
+                        className="p-1.5 hover:bg-slate-100 rounded text-surface-600 transition-colors"
+                        onClick={() => {
+                          const url = window.prompt('Enter link URL:', 'https://');
+                          if (url) applyFormatting('[', `](${url})`, 'link text');
+                        }}
+                      >
+                        <LinkIcon className="w-3.5 h-3.5" />
+                      </button>
+                      <button
+                        title="Bullet List: - item"
+                        className="p-1.5 hover:bg-slate-100 rounded text-surface-600 transition-colors"
+                        onClick={() => applyFormatting('- ', '', 'Bullet Item')}
+                      >
+                        <List className="w-3.5 h-3.5" />
+                      </button>
+                      <button
+                        title="Numbered List: 1. item"
+                        className="p-1.5 hover:bg-slate-100 rounded text-surface-600 transition-colors"
+                        onClick={() => applyFormatting('1. ', '', 'Numbered Item')}
+                      >
+                        <ListOrdered className="w-3.5 h-3.5" />
+                      </button>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <Button
+                      variant={isPreviewMode ? "primary" : "outline"}
+                      size="sm"
+                      className={cn(
+                        "text-[10px] font-bold uppercase tracking-widest h-8 px-4 shadow-sm transition-all",
+                        !isPreviewMode && "text-surface-600 hover:bg-slate-50"
+                      )}
+                      onClick={() => setIsPreviewMode(!isPreviewMode)}
+                      leftIcon={isPreviewMode ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
+                    >
+                      {isPreviewMode ? 'View Editor' : 'Show Preview'}
+                    </Button>
+                  </div>
+                </div>
+
+                {isPreviewMode ? (
+                  <div className="min-h-[400px] p-8 md:p-12 rounded-lg border border-surface-200 bg-white shadow-sm prose prose-slate prose-indigo max-w-none prose-headings:font-black prose-headings:tracking-tight prose-a:text-primary prose-strong:text-surface-900">
+                    <ReactMarkdown remarkPlugins={[remarkGfm]}>
+                      {(lessonForm.description || "").replace(/^#([^\s#])/gm, '# $1')}
+                    </ReactMarkdown>
+                  </div>
+                ) : (
+                  <Textarea
+                    ref={descriptionRef}
+                    label="Unit Exposition"
+                    value={lessonForm.description || ''}
+                    onChange={(e) => setLessonForm(prev => ({ ...prev, description: e.target.value }))}
+                    rows={12}
+                    placeholder="Provide technical context and learning objectives for this module... (Markdown supported)"
+                  />
+                )}
+              </div>
             </TabPanel>
 
             <TabPanel isActive={editorTab === 'lesson-attach'}>
