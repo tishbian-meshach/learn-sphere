@@ -33,30 +33,32 @@ export function getInitials(name: string | null | undefined): string {
 }
 
 export const BADGE_THRESHOLDS = {
-  NEWBIE: 0,
-  EXPLORER: 20,
-  ACHIEVER: 40,
-  SPECIALIST: 60,
-  EXPERT: 80,
-  MASTER: 100,
+  LEARNER: 0,
+  NEWBIE: 20,
+  EXPLORER: 40,
+  ACHIEVER: 60,
+  SPECIALIST: 80,
+  EXPERT: 100,
+  MASTER: 120,
 } as const;
 
 export function getBadgeLevel(points: number): keyof typeof BADGE_THRESHOLDS {
-  if (points >= 100) return 'MASTER';
-  if (points >= 80) return 'EXPERT';
-  if (points >= 60) return 'SPECIALIST';
-  if (points >= 40) return 'ACHIEVER';
-  if (points >= 20) return 'EXPLORER';
-  return 'NEWBIE';
+  if (points >= 120) return 'MASTER';
+  if (points >= 100) return 'EXPERT';
+  if (points >= 80) return 'SPECIALIST';
+  if (points >= 60) return 'ACHIEVER';
+  if (points >= 40) return 'EXPLORER';
+  if (points >= 20) return 'NEWBIE';
+  return 'LEARNER';
 }
 
 export function getNextBadgeProgress(points: number): { current: string; next: string; progress: number } {
   const levels = Object.entries(BADGE_THRESHOLDS) as [keyof typeof BADGE_THRESHOLDS, number][];
-  
+
   for (let i = 0; i < levels.length - 1; i++) {
     const [currentLevel, currentThreshold] = levels[i];
     const [nextLevel, nextThreshold] = levels[i + 1];
-    
+
     if (points < nextThreshold) {
       return {
         current: currentLevel,
@@ -65,6 +67,6 @@ export function getNextBadgeProgress(points: number): { current: string; next: s
       };
     }
   }
-  
+
   return { current: 'MASTER', next: 'MASTER', progress: 100 };
 }

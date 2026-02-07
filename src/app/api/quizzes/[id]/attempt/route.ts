@@ -66,11 +66,20 @@ export async function POST(
       },
     });
 
-    // Update user points and badge
+    // Calculate new total points with a cap of 120
+    const currentUser = await prisma.user.findUnique({
+      where: { id: userId },
+      select: { totalPoints: true, badgeLevel: true }
+    });
+
+    const currentTotal = currentUser?.totalPoints || 0;
+    const newTotalPoints = Math.min(currentTotal + pointsEarned, 120);
+
+    // Update user points
     const user = await prisma.user.update({
       where: { id: userId },
       data: {
-        totalPoints: { increment: pointsEarned },
+        totalPoints: newTotalPoints,
       },
     });
 
