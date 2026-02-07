@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { User } from '@prisma/client';
 import {
@@ -11,7 +11,9 @@ import {
     AlertTriangle,
     Loader2,
     Mail,
-    Key
+    Key,
+    Upload,
+    X
 } from 'lucide-react';
 import { toast } from 'react-hot-toast';
 
@@ -29,10 +31,14 @@ export function SettingsView({ user }: SettingsViewProps) {
     const router = useRouter();
     const [activeTab, setActiveTab] = useState('profile');
     const [isLoading, setIsLoading] = useState(false);
+    const fileInputRef = useRef<HTMLInputElement>(null);
 
     // Profile Form State
     const [name, setName] = useState(user.name || '');
     const [email, setEmail] = useState(user.email || '');
+    const [avatarUrl, setAvatarUrl] = useState(user.avatarUrl || '');
+    const [isUploadingAvatar, setIsUploadingAvatar] = useState(false);
+    const [previewUrl, setPreviewUrl] = useState<string | null>(null);
 
     // Password Form State
     const [currentPassword, setCurrentPassword] = useState('');
@@ -43,6 +49,81 @@ export function SettingsView({ user }: SettingsViewProps) {
     const [deleteConfirmation, setDeleteConfirmation] = useState('');
     const [isDeleting, setIsDeleting] = useState(false);
 
+    const handleFileSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
+        const file = e.target.files?.[0];
+        if (!file) return;
+
+        // Validate file type
+        const allowedTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/gif', 'image/webp'];
+        if (!allowedTypes.includes(file.type)) {
+            toast.error('Invalid file type. Only JPEG, PNG, GIF, and WebP are allowed');
+            return;
+        }
+
+        // Validate file size (5MB max)
+        const maxSize = 5 * 1024 * 1024;
+        if (file.size > maxSize) {
+            toast.error('File too large. Maximum size is 5MB');
+            return;
+        }
+
+        // Show preview
+        const reader = new FileReader();
+        reader.onloadend = () => {
+            setPreviewUrl(reader.result as string);
+        };
+        reader.readAsDataURL(file);
+
+        // Upload file
+        setIsUploadingAvatar(true);
+        try {
+            const formData = new FormData();
+            formData.append('avatar', file);
+
+            const response = await fetch('/api/user/avatar', {
+                method: 'POST',
+                body: formData,
+            });
+
+            if (!response.ok) {
+                const data = await response.json();
+                throw new Error(data.error || 'Failed to upload avatar');
+            }
+
+            const data = await response.json();
+            setAvatarUrl(data.avatarUrl);
+            toast.success('Avatar updated successfully');
+            router.refresh();
+        } catch (error: any) {
+            toast.error(error.message || 'Failed to upload avatar');
+            setPreviewUrl(null);
+        } finally {
+            setIsUploadingAvatar(false);
+        }
+    };
+
+    const handleRemoveAvatar = async () => {
+        setIsUploadingAvatar(true);
+        try {
+            const response = await fetch('/api/user/avatar', {
+                method: 'DELETE',
+            });
+
+            if (!response.ok) {
+                throw new Error('Failed to remove avatar');
+            }
+
+            setAvatarUrl('');
+            setPreviewUrl(null);
+            toast.success('Avatar removed successfully');
+            router.refresh();
+        } catch (error: any) {
+            toast.error(error.message || 'Failed to remove avatar');
+        } finally {
+            setIsUploadingAvatar(false);
+        }
+    };
+
     const handleUpdateProfile = async (e: React.FormEvent) => {
         e.preventDefault();
         setIsLoading(true);
@@ -51,7 +132,7 @@ export function SettingsView({ user }: SettingsViewProps) {
             const response = await fetch('/api/user/profile', {
                 method: 'PUT',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ name, email }),
+                body: JSON.stringify({ name }),
             });
 
             if (!response.ok) {
@@ -155,10 +236,62 @@ export function SettingsView({ user }: SettingsViewProps) {
                 <div className="p-6">
                     <TabPanel isActive={activeTab === 'profile'}>
                         <div className="max-w-xl space-y-8">
-                            <div className="flex items-center gap-6 pb-6 border-b border-border">
-                                <UserAvatar size="xl" className="w-20 h-20 text-xl" />
-                                <div>
-                                    <h3 className="font-medium text-surface-900">Profile Picture</h3>
+                            <div className="pb-6 border-b border-border">
+                                <h3 className="font-medium text-surface-900 mb-4">Profile Picture</h3>
+                                <div className="flex items-center gap-6">
+                                    <div className="relative">
+                                        {previewUrl ? (
+                                            <img
+                                                src={previewUrl}
+                                                alt="Preview"
+                                                className="w-20 h-20 rounded-full object-cover ring-2 ring-white shadow-md"
+                                            />
+                                        ) : (
+                                            <UserAvatar size="xl" className="w-20 h-20 text-xl" />
+                                        )}
+                                        {isUploadingAvatar && (
+                                            <div className="absolute inset-0 flex items-center justify-center bg-black bg-opacity-50 rounded-full">
+                                                <Loader2 className="w-6 h-6 animate-spin text-white" />
+                                            </div>
+                                        )}
+                                    </div>
+                                    <div className="flex-1">
+                                        <p className="text-sm text-surface-600 mb-3">
+                                            Upload a Profile Picture
+                                        </p>
+                                        <div className="flex gap-3">
+                                            <input
+                                                ref={fileInputRef}
+                                                type="file"
+                                                accept="image/*"
+                                                onChange={handleFileSelect}
+                                                className="hidden"
+                                                disabled={isUploadingAvatar}
+                                            />
+                                            <Button
+                                                type="button"
+                                                variant="secondary"
+                                                size="sm"
+                                                onClick={() => fileInputRef.current?.click()}
+                                                disabled={isUploadingAvatar}
+                                                leftIcon={<Upload className="w-4 h-4" />}
+                                            >
+                                                Upload New
+                                            </Button>
+                                            {(avatarUrl || previewUrl) && (
+                                                <Button
+                                                    type="button"
+                                                    variant="outline"
+                                                    size="sm"
+                                                    onClick={handleRemoveAvatar}
+                                                    disabled={isUploadingAvatar}
+                                                    leftIcon={<X className="w-4 h-4" />}
+                                                >
+                                                    Remove
+                                                </Button>
+                                            )}
+                                        </div>
+                                    </div>
                                 </div>
                             </div>
 

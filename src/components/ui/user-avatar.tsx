@@ -10,15 +10,18 @@ interface UserAvatarProps {
 }
 
 /**
- * UserAvatar component that displays the user's avatar based on their auth provider
- * - Google OAuth users: Shows their Google profile picture
- * - Other users: Shows letter-based avatar with initials from their name
+ * UserAvatar component that displays the user's avatar with priority:
+ * 1. Google OAuth users: Shows their Google profile picture
+ * 2. Users with uploaded avatar: Shows their uploaded profile picture from database
+ * 3. Fallback: Shows letter-based avatar with initials from their name
  */
 export function UserAvatar({ size = 'md', className }: UserAvatarProps) {
   const { user, profile } = useAuth();
 
-  // Get the appropriate avatar URL based on auth provider
-  // Returns null for non-Google users to trigger letter-based avatar
+  // Get the appropriate avatar URL with the following priority:
+  // 1. Google profile picture (if signed in with Google)
+  // 2. Uploaded avatar from database (avatarUrl field)
+  // 3. null (triggers letter-based avatar with initials)
   const avatarUrl = getUserAvatarUrl(user, profile?.avatarUrl);
 
   return (

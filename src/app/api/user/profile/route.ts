@@ -12,16 +12,22 @@ export async function PUT(request: NextRequest) {
         }
 
         const body = await request.json();
-        const { name } = body;
+        const { name, avatarUrl } = body;
 
         // validation
         if (!name || name.trim().length < 2) {
             return NextResponse.json({ error: 'Name must be at least 2 characters' }, { status: 400 });
         }
 
+        // Prepare update data
+        const updateData: any = { name };
+        if (avatarUrl !== undefined) {
+            updateData.avatarUrl = avatarUrl;
+        }
+
         const updatedUser = await prisma.user.update({
             where: { id: user.id },
-            data: { name },
+            data: updateData,
         });
 
         return NextResponse.json(updatedUser);

@@ -70,22 +70,26 @@ export function getNextBadgeProgress(points: number): { current: string; next: s
 }
 
 /**
- * Get the user's avatar URL based on their authentication provider
+ * Get the user's avatar URL with priority order:
+ * 1. Google OAuth profile picture (from user metadata)
+ * 2. Uploaded avatar from database (avatarUrl field)
+ * 3. null - triggers letter-based avatar with initials
+ * 
  * @param user - Supabase User object
- * @param fallbackUrl - Fallback avatar URL from database (optional)
- * @returns Avatar URL or null (which triggers letter-based avatar with initials)
+ * @param fallbackUrl - Avatar URL from database (uploaded by user)
+ * @returns Avatar URL or null (which triggers letter-based avatar)
  */
 export function getUserAvatarUrl(user: any, fallbackUrl?: string | null): string | null {
-  // If user logged in with Google OAuth, use their Google profile picture
+  // Priority 1: If user logged in with Google OAuth, use their Google profile picture
   if (user?.app_metadata?.provider === 'google' && user?.user_metadata?.avatar_url) {
     return user.user_metadata.avatar_url;
   }
   
-  // Otherwise, use the database avatar URL if available
+  // Priority 2: Use the database avatar URL if user uploaded a profile picture
   if (fallbackUrl) {
     return fallbackUrl;
   }
   
-  // Return null to trigger letter-based avatar with user's initials
+  // Priority 3: Return null to trigger letter-based avatar with user's initials
   return null;
 }
