@@ -1,18 +1,37 @@
 'use client';
 
+import { useState, useEffect } from 'react';
 import { AuthProvider } from '@/hooks/use-auth';
 import { AdminSidebar } from '@/components/admin/sidebar';
+import { cn } from '@/lib/utils';
 
 export default function AdminLayout({
   children,
 }: {
   children: React.ReactNode;
 }) {
+  const [isCollapsed, setIsCollapsed] = useState(false);
+
+  // Persistence
+  useEffect(() => {
+    const stored = localStorage.getItem('adminSidebarCollapsed');
+    if (stored !== null) setIsCollapsed(stored === 'true');
+  }, []);
+
+  useEffect(() => {
+    localStorage.setItem('adminSidebarCollapsed', isCollapsed.toString());
+  }, [isCollapsed]);
+
   return (
     <AuthProvider>
       <div className="min-h-screen bg-surface-50">
-        <AdminSidebar />
-        <main className="lg:pl-64 pt-16 lg:pt-0 min-h-screen">
+        <AdminSidebar isCollapsed={isCollapsed} setIsCollapsed={setIsCollapsed} />
+        <main
+          className={cn(
+            'pt-16 lg:pt-0 min-h-screen transition-all duration-300',
+            isCollapsed ? 'lg:pl-16' : 'lg:pl-64'
+          )}
+        >
           <div className="p-6 lg:p-8">{children}</div>
         </main>
       </div>
