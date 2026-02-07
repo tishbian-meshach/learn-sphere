@@ -45,7 +45,7 @@ export function LearnerSidebar() {
     <>
       {/* Mobile Overlay */}
       {isMobileOpen && (
-        <div 
+        <div
           className="fixed inset-0 bg-surface-900/20 backdrop-blur-sm z-40 lg:hidden"
           onClick={() => setIsMobileOpen(false)}
         />
@@ -53,9 +53,9 @@ export function LearnerSidebar() {
 
       {/* Mobile Toggle */}
       <div className="lg:hidden fixed top-3 left-4 z-50">
-        <Button 
-          variant="outline" 
-          size="icon-sm" 
+        <Button
+          variant="outline"
+          size="icon-sm"
           onClick={() => setIsMobileOpen(!isMobileOpen)}
         >
           {isMobileOpen ? <X className="h-4 w-4" /> : <Menu className="h-4 w-4" />}
@@ -94,7 +94,7 @@ export function LearnerSidebar() {
             <div className="space-y-1.5">
               <div className="flex justify-between text-[10px] font-bold text-surface-500">
                 <span>{profile?.badgeLevel}</span>
-                <span>{nextBadge.nextLevel}</span>
+                <span>{nextBadge.next}</span>
               </div>
               <Progress value={nextBadge.progress} size="sm" />
             </div>
@@ -125,7 +125,7 @@ export function LearnerSidebar() {
 
         {/* User Profile */}
         <div className="p-2 border-t border-border bg-slate-50/50">
-          <div className={cn(
+          <Link href="/learner/profile" className={cn(
             "flex items-center gap-3 p-2 rounded-md",
             !isCollapsed && "bg-white border border-border shadow-sm"
           )}>
@@ -134,11 +134,11 @@ export function LearnerSidebar() {
               <div className="flex-1 min-w-0">
                 <p className="text-xs font-bold text-surface-900 truncate">{profile?.name || 'Learner'}</p>
                 <div className="flex items-center gap-1.5">
-                   <Badge variant="primary" size="sm" className="px-1 py-0">{profile?.badgeLevel}</Badge>
+                  <Badge variant="primary" size="sm" className="px-1 py-0">{profile?.badgeLevel}</Badge>
                 </div>
               </div>
             )}
-          </div>
+          </Link>
           <button
             onClick={handleSignOut}
             className={cn(

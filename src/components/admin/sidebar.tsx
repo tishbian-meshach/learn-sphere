@@ -40,7 +40,7 @@ export function AdminSidebar() {
   };
 
   // Filter nav items based on user role
-  const filteredNavItems = navItems.filter(item => 
+  const filteredNavItems = navItems.filter(item =>
     profile?.role && item.roles.includes(profile.role)
   );
 
@@ -48,7 +48,7 @@ export function AdminSidebar() {
     <>
       {/* Mobile Overlay */}
       {isMobileOpen && (
-        <div 
+        <div
           className="fixed inset-0 bg-surface-900/20 backdrop-blur-sm z-40 lg:hidden"
           onClick={() => setIsMobileOpen(false)}
         />
@@ -56,9 +56,9 @@ export function AdminSidebar() {
 
       {/* Mobile Toggle */}
       <div className="lg:hidden fixed top-3 left-4 z-50">
-        <Button 
-          variant="outline" 
-          size="icon-sm" 
+        <Button
+          variant="outline"
+          size="icon-sm"
           onClick={() => setIsMobileOpen(!isMobileOpen)}
         >
           {isMobileOpen ? <X className="h-4 w-4" /> : <Menu className="h-4 w-4" />}
@@ -111,7 +111,7 @@ export function AdminSidebar() {
 
         {/* User Profile */}
         <div className="p-2 border-t border-border bg-slate-50/50">
-          <div className={cn(
+          <Link href="/admin/profile" className={cn(
             "flex items-center gap-3 p-2 rounded-md",
             !isCollapsed && "bg-white border border-border shadow-sm"
           )}>
@@ -122,7 +122,7 @@ export function AdminSidebar() {
                 <p className="text-[10px] text-surface-500 font-medium uppercase tracking-[0.05em]">{profile?.role}</p>
               </div>
             )}
-          </div>
+          </Link>
           <button
             onClick={handleSignOut}
             className={cn(
