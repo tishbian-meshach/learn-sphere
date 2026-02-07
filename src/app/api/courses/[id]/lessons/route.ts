@@ -94,6 +94,7 @@ export async function POST(
       duration,
       documentUrl,
       imageUrl,
+      responsible,
       allowDownload,
     } = body;
 
@@ -115,6 +116,7 @@ export async function POST(
           duration: duration ? parseInt(duration) : null,
           documentUrl,
           imageUrl,
+          responsible,
           allowDownload: allowDownload || false,
           orderIndex,
           courseId: params.id,
