@@ -16,7 +16,7 @@ import {
   X,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { Avatar } from '@/components/ui/avatar';
+import { UserAvatar } from '@/components/ui/user-avatar';
 import { useAuth } from '@/hooks/use-auth';
 import { cn } from '@/lib/utils';
 
@@ -118,7 +118,7 @@ export function AdminSidebar({ isCollapsed, setIsCollapsed }: AdminSidebarProps)
             "flex items-center gap-3 p-2 rounded-md",
             !isCollapsed && "bg-white border border-border shadow-sm"
           )}>
-            <Avatar src={profile?.avatarUrl || ''} name={profile?.name || ''} size={isCollapsed ? "sm" : "sm"} />
+            <UserAvatar size="sm" />
             {!isCollapsed && (
               <div className="flex-1 min-w-0">
                 <p className="text-xs font-bold text-surface-900 truncate">{profile?.name || 'Administrator'}</p>

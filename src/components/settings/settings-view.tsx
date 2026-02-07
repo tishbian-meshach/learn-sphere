@@ -17,7 +17,7 @@ import { toast } from 'react-hot-toast';
 
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Avatar } from '@/components/ui/avatar';
+import { UserAvatar } from '@/components/ui/user-avatar';
 import { Tabs, TabPanel } from '@/components/ui/tabs'; // Assuming this export exists based on view_file
 import { cn } from '@/lib/utils';
 
@@ -156,16 +156,9 @@ export function SettingsView({ user }: SettingsViewProps) {
                     <TabPanel isActive={activeTab === 'profile'}>
                         <div className="max-w-xl space-y-8">
                             <div className="flex items-center gap-6 pb-6 border-b border-border">
-                                <Avatar
-                                    src={user.avatarUrl || ''}
-                                    name={user.name || ''}
-                                    className="w-20 h-20 text-xl"
-                                />
+                                <UserAvatar size="xl" className="w-20 h-20 text-xl" />
                                 <div>
                                     <h3 className="font-medium text-surface-900">Profile Picture</h3>
-                                    <p className="text-xs text-surface-500 mt-1">
-                                        Your avatar is managed via your Gravatar email or Supabase profile.
-                                    </p>
                                 </div>
                             </div>
 

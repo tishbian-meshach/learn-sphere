@@ -16,7 +16,7 @@ import {
   Trophy,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { Avatar } from '@/components/ui/avatar';
+import { UserAvatar } from '@/components/ui/user-avatar';
 import { Progress } from '@/components/ui/progress';
 import { Badge } from '@/components/ui/badge';
 import { useAuth } from '@/hooks/use-auth';
@@ -150,7 +150,7 @@ export function LearnerSidebar({ isCollapsed, setIsCollapsed }: LearnerSidebarPr
             "flex items-center gap-3 p-2 rounded-md",
             !isCollapsed && "bg-white border border-border shadow-sm"
           )}>
-            <Avatar src={profile?.avatarUrl || ''} name={profile?.name || ''} size="sm" />
+            <UserAvatar size="sm" />
             {!isCollapsed && (
               <div className="flex-1 min-w-0">
                 <p className="text-xs font-bold text-surface-900 truncate">{profile?.name || 'Learner'}</p>

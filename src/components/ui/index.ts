@@ -8,6 +8,7 @@ export * from './badge';
 export * from './tabs';
 export * from './progress';
 export * from './avatar';
+export * from './user-avatar';
 export * from './empty-state';
 export * from './textarea';
 export * from './dropdown-menu';

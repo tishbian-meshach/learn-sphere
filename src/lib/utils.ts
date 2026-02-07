@@ -68,3 +68,24 @@ export function getNextBadgeProgress(points: number): { current: string; next: s
 
   return { current: 'MASTER', next: 'MASTER', progress: 100 };
 }
+
+/**
+ * Get the user's avatar URL based on their authentication provider
+ * @param user - Supabase User object
+ * @param fallbackUrl - Fallback avatar URL from database (optional)
+ * @returns Avatar URL or null (which triggers letter-based avatar with initials)
+ */
+export function getUserAvatarUrl(user: any, fallbackUrl?: string | null): string | null {
+  // If user logged in with Google OAuth, use their Google profile picture
+  if (user?.app_metadata?.provider === 'google' && user?.user_metadata?.avatar_url) {
+    return user.user_metadata.avatar_url;
+  }
+  
+  // Otherwise, use the database avatar URL if available
+  if (fallbackUrl) {
+    return fallbackUrl;
+  }
+  
+  // Return null to trigger letter-based avatar with user's initials
+  return null;
+}
