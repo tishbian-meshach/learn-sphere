@@ -7,7 +7,6 @@ import {
   Shield,
   Bell,
   Globe,
-  Database,
   Mail,
   Smartphone,
   CreditCard,
@@ -25,7 +24,6 @@ const settingsNav = [
   { id: 'organization', label: 'Organization Configuration', icon: Globe, description: 'Branding, timezone, and global identifiers' },
   { id: 'security', label: 'Access Control & Security', icon: Shield, description: 'Authentication protocols and API security' },
   { id: 'notifications', label: 'System Notifications', icon: Bell, description: 'Triggered emails and platform alerts' },
-  { id: 'infrastructure', label: 'Data Infrastructure', icon: Database, description: 'External integrations and storage' },
 ];
 
 export default function AdminSettingsPage() {
@@ -60,14 +58,14 @@ export default function AdminSettingsPage() {
           </h1>
           <p className="text-sm text-surface-500 font-medium">Configure global parameters and system integration protocols.</p>
         </div>
-        <Button 
-          variant="primary" 
-          size="md" 
+        <Button
+          variant="primary"
+          size="md"
           leftIcon={<Save className="w-4 h-4" />}
           isLoading={isSaving}
           onClick={handleSave}
         >
-           Save Changes
+          Save Changes
         </Button>
       </div>
 
@@ -113,53 +111,53 @@ export default function AdminSettingsPage() {
             {activeTab === 'organization' && (
               <div className="space-y-8 animate-in fade-in slide-in-from-right-2 duration-300">
                 <div className="space-y-1 border-b border-border pb-6">
-                   <h3 className="text-base font-extrabold text-surface-900 uppercase tracking-tight">Branding & Identity</h3>
-                   <p className="text-xs text-surface-500 font-medium">Maintain a consistent visual presence across the learning environment.</p>
+                  <h3 className="text-base font-extrabold text-surface-900 uppercase tracking-tight">Branding & Identity</h3>
+                  <p className="text-xs text-surface-500 font-medium">Maintain a consistent visual presence across the learning environment.</p>
                 </div>
 
                 <div className="grid md:grid-cols-2 gap-6">
-                   <Input 
-                     label="Organization Name" 
-                     placeholder="LearnSphere Education" 
-                     defaultValue="LearnSphere"
-                   />
-                   <Input 
-                     label="Support Contact" 
-                     placeholder="ops@organization.com" 
-                     defaultValue="admin@learnsphere.com"
-                     leftIcon={<Mail className="w-4 h-4" />}
-                   />
-                   <div className="space-y-2">
-                      <label className="text-[10px] font-extrabold text-surface-400 uppercase tracking-wider mb-1.5 block">Primary Accent</label>
-                      <div className="flex items-center gap-4">
-                         <div className="w-10 h-10 rounded border-2 border-primary bg-primary ring-4 ring-primary/10 shadow-sm" />
-                         <span className="text-xs font-mono font-bold text-surface-600">#4F46E5</span>
-                      </div>
-                   </div>
+                  <Input
+                    label="Organization Name"
+                    placeholder="LearnSphere Education"
+                    defaultValue="LearnSphere"
+                  />
+                  <Input
+                    label="Support Contact"
+                    placeholder="ops@organization.com"
+                    defaultValue="admin@learnsphere.com"
+                    leftIcon={<Mail className="w-4 h-4" />}
+                  />
+                  <div className="space-y-2">
+                    <label className="text-[10px] font-extrabold text-surface-400 uppercase tracking-wider mb-1.5 block">Primary Accent</label>
+                    <div className="flex items-center gap-4">
+                      <div className="w-10 h-10 rounded border-2 border-primary bg-primary ring-4 ring-primary/10 shadow-sm" />
+                      <span className="text-xs font-mono font-bold text-surface-600">#4F46E5</span>
+                    </div>
+                  </div>
                 </div>
 
                 <div className="space-y-1 border-b border-border pt-8 pb-6">
-                   <h3 className="text-base font-extrabold text-surface-900 uppercase tracking-tight">Regional Constraints</h3>
-                   <p className="text-xs text-surface-500 font-medium">Standardize timeframes and localization preferences.</p>
+                  <h3 className="text-base font-extrabold text-surface-900 uppercase tracking-tight">Regional Constraints</h3>
+                  <p className="text-xs text-surface-500 font-medium">Standardize timeframes and localization preferences.</p>
                 </div>
 
                 <div className="grid md:grid-cols-2 gap-6">
-                   <div className="space-y-2">
-                      <label className="text-[10px] font-extrabold text-surface-400 uppercase tracking-wider mb-1.5 block">Default Timezone</label>
-                      <select className="input-field bg-white">
-                         <option>Universal Coordinated (UTC)</option>
-                         <option>Pacific Standard (PST)</option>
-                         <option>Eastern Standard (EST)</option>
-                      </select>
-                   </div>
-                   <div className="space-y-2">
-                      <label className="text-[10px] font-extrabold text-surface-400 uppercase tracking-wider mb-1.5 block">Primary Currency</label>
-                      <select className="input-field bg-white">
-                         <option>INR - Indian Rupee (₹)</option>
-                         <option>USD - US Dollar ($)</option>
-                         <option>EUR - Euro (€)</option>
-                      </select>
-                   </div>
+                  <div className="space-y-2">
+                    <label className="text-[10px] font-extrabold text-surface-400 uppercase tracking-wider mb-1.5 block">Default Timezone</label>
+                    <select className="input-field bg-white">
+                      <option>Universal Coordinated (UTC)</option>
+                      <option>Pacific Standard (PST)</option>
+                      <option>Eastern Standard (EST)</option>
+                    </select>
+                  </div>
+                  <div className="space-y-2">
+                    <label className="text-[10px] font-extrabold text-surface-400 uppercase tracking-wider mb-1.5 block">Primary Currency</label>
+                    <select className="input-field bg-white">
+                      <option>INR - Indian Rupee (₹)</option>
+                      <option>USD - US Dollar ($)</option>
+                      <option>EUR - Euro (€)</option>
+                    </select>
+                  </div>
                 </div>
               </div>
             )}
@@ -170,8 +168,8 @@ export default function AdminSettingsPage() {
                   <Settings className="w-8 h-8 text-surface-300" />
                 </div>
                 <div className="space-y-1">
-                   <p className="text-sm font-bold text-surface-900">Module Initializing</p>
-                   <p className="text-xs text-surface-500 max-w-xs mx-auto">This configuration subspace is currently being provisioned with the latest system features.</p>
+                  <p className="text-sm font-bold text-surface-900">Module Initializing</p>
+                  <p className="text-xs text-surface-500 max-w-xs mx-auto">This configuration subspace is currently being provisioned with the latest system features.</p>
                 </div>
               </div>
             )}
