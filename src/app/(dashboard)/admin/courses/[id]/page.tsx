@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { DragDropContext, Droppable, Draggable, DropResult } from '@hello-pangea/dnd';
+import { DragDropContext, Droppable, Draggable, DropResult, DroppableProvided, DraggableProvided } from '@hello-pangea/dnd';
 import { useRouter, useParams } from 'next/navigation';
 import {
   Save,
@@ -587,7 +587,7 @@ export default function CourseEditPage() {
                   ) : (
                     <DragDropContext onDragEnd={onDragEnd}>
                       <Droppable droppableId="lessons">
-                        {(provided) => (
+                        {(provided: DroppableProvided) => (
                           <div 
                             {...provided.droppableProps} 
                             ref={provided.innerRef} 
@@ -595,7 +595,7 @@ export default function CourseEditPage() {
                           >
                             {[...course.lessons].sort((a, b) => a.orderIndex - b.orderIndex).map((lesson, index) => (
                               <Draggable key={lesson.id} draggableId={lesson.id} index={index}>
-                                {(provided) => (
+                                {(provided: DraggableProvided) => (
                                   <div 
                                     ref={provided.innerRef}
                                     {...provided.draggableProps}
