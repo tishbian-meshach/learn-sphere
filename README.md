@@ -110,3 +110,87 @@ src/
 - **Storage:** Supabase Storage
 - **Styling:** Tailwind CSS
 - **Icons:** Lucide React
+
+## 🌐 Production Deployment
+
+### Deploy to Vercel
+
+1. **Push to GitHub**
+   ```bash
+   git push origin main
+   ```
+
+2. **Import to Vercel**
+   - Go to [vercel.com](https://vercel.com)
+   - Click "New Project"
+   - Import your GitHub repository
+   - Add environment variables (see `.env.example`)
+
+3. **Configure Supabase for Production**
+   
+   Go to Supabase Dashboard → Authentication → URL Configuration:
+
+   **Site URL:**
+   ```
+   https://your-app.vercel.app
+   ```
+
+   **Redirect URLs (add both):**
+   ```
+   http://localhost:3000/auth/callback
+   https://your-app.vercel.app/auth/callback
+   ```
+
+4. **Update Email Templates**
+   
+   Go to Supabase Dashboard → Authentication → Email Templates
+   
+   Update all templates to use `{{ .SiteURL }}` instead of hardcoded URLs:
+   ```html
+   <a href="{{ .SiteURL }}/auth/callback?token_hash={{ .TokenHash }}&type=signup&next=/sign-in">
+     Verify your email
+   </a>
+   ```
+
+5. **Setup Database**
+   ```bash
+   # Run migrations on production database
+   npx prisma db push
+   
+   # Seed demo data (optional)
+   npx prisma db seed
+   ```
+
+6. **Test OAuth Flow**
+   - Clear browser cookies
+   - Test Google OAuth sign-in
+   - Test email verification links
+
+For detailed configuration steps, see [SUPABASE_CONFIG.md](./SUPABASE_CONFIG.md)
+
+### Environment Variables for Vercel
+
+Add these to your Vercel project settings:
+
+```env
+NEXT_PUBLIC_SUPABASE_URL=https://your-project.supabase.co
+NEXT_PUBLIC_SUPABASE_ANON_KEY=your-anon-key
+DATABASE_URL=postgresql://...
+DIRECT_URL=postgresql://...
+```
+
+## 📝 Common Issues
+
+**OAuth redirects to localhost**
+- Update Supabase Site URL to your production domain
+- Add production URL to Redirect URLs list
+- Clear browser cookies
+
+**Email links pointing to localhost**
+- Update Supabase email templates to use `{{ .SiteURL }}`
+- Ensure Site URL is set correctly
+
+**"Invalid redirect URL" error**
+- Add your domain to Supabase Redirect URLs
+- Redeploy your Vercel application
+

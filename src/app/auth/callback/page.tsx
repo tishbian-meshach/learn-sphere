@@ -16,7 +16,26 @@ export default function AuthCallbackPage() {
                 // Handle the code exchange
                 const searchParams = new URLSearchParams(window.location.search);
                 const code = searchParams.get('code');
+                const token_hash = searchParams.get('token_hash');
+                const type = searchParams.get('type');
 
+                // Handle email verification/confirmation
+                if (token_hash && type) {
+                    console.log('Auth callback: verifying email with token_hash');
+                    const { error: verifyError } = await supabase.auth.verifyOtp({
+                        token_hash,
+                        type: type as any,
+                    });
+
+                    if (verifyError) {
+                        console.error('Auth callback: verification error', verifyError);
+                        router.push('/sign-in?error=Email verification failed');
+                        return;
+                    }
+                    console.log('Auth callback: email verified successfully');
+                }
+
+                // Handle OAuth code exchange
                 if (code) {
                     console.log('Auth callback: exchanging code for session');
                     await supabase.auth.exchangeCodeForSession(code);
