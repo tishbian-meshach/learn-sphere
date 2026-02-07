@@ -349,8 +349,8 @@ export default function LessonPlayerPage() {
           <p className="text-surface-500 text-sm max-w-md text-center">
             This course has no lessons yet. Please check back later or contact the instructor.
           </p>
-          <Button variant="outline" size="sm" onClick={() => router.push('/learner/courses')}>
-            Browse Other Courses
+          <Button variant="outline" size="sm" onClick={() => router.push('/learner/my-courses')}>
+            Return to My Library
           </Button>
         </div>
       </div>
