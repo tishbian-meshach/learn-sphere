@@ -155,3 +155,40 @@ export async function POST(
     return NextResponse.json({ error: 'Failed to create lesson' }, { status: 500 });
   }
 }
+// PATCH /api/courses/[id]/lessons - Bulk update lesson order
+export async function PATCH(
+  request: NextRequest,
+  { params }: { params: { id: string } }
+) {
+  try {
+    const currentUser = await getCurrentUser(request);
+    if (!currentUser) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+
+    if (currentUser.role === 'INSTRUCTOR') {
+      const course = await prisma.course.findUnique({
+        where: { id: params.id },
+        select: { instructorId: true },
+      });
+      if (!course) return NextResponse.json({ error: 'Course not found' }, { status: 404 });
+      if (course.instructorId !== currentUser.id) {
+        return NextResponse.json({ error: 'Unauthorized' }, { status: 403 });
+      }
+    }
+
+    const { lessons } = await request.json(); // Array of { id: string, orderIndex: number }
+
+    await prisma.$transaction(
+      lessons.map((lesson: { id: string; orderIndex: number }) =>
+        prisma.lesson.update({
+          where: { id: lesson.id },
+          data: { orderIndex: lesson.orderIndex },
+        })
+      )
+    );
+
+    return NextResponse.json({ success: true });
+  } catch (error) {
+    console.error('Error reordering lessons:', error);
+    return NextResponse.json({ error: 'Reordering failed' }, { status: 500 });
+  }
+}

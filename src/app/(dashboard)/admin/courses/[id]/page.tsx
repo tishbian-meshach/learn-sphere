@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import { DragDropContext, Droppable, Draggable, DropResult } from '@hello-pangea/dnd';
 import { useRouter, useParams } from 'next/navigation';
 import {
   Save,
@@ -432,6 +433,41 @@ export default function CourseEditPage() {
     }
   };
 
+  const onDragEnd = async (result: DropResult) => {
+    if (!result.destination || !course) return;
+
+    const items = Array.from(course.lessons);
+    const [reorderedItem] = items.splice(result.source.index, 1);
+    items.splice(result.destination.index, 0, reorderedItem);
+
+    // Update locally first
+    const updatedLessons = items.map((item, index) => ({
+      ...item,
+      orderIndex: index,
+    }));
+
+    setCourse({ ...course, lessons: updatedLessons });
+
+    // Sync with backend
+    try {
+      const res = await fetch(`/api/courses/${id}/lessons`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          lessons: updatedLessons.map(l => ({ id: l.id, orderIndex: l.orderIndex }))
+        }),
+      });
+
+      if (!res.ok) {
+        toast.error('Failed to preserve curriculum order');
+        fetchCourse(); // Revert on failure
+      }
+    } catch (error) {
+      toast.error('Reordering synchronization failed');
+      fetchCourse();
+    }
+  };
+
   const handleInvite = async () => {
     if (!inviteEmail) {
       toast.error('Email address required');
@@ -549,31 +585,53 @@ export default function CourseEditPage() {
                       <Button size="sm" variant="secondary" onClick={() => handleOpenEditor()}>Add First Module</Button>
                     </div>
                   ) : (
-                    <div className="space-y-2">
-                      {[...course.lessons].sort((a, b) => a.orderIndex - b.orderIndex).map((lesson) => (
-                        <div key={lesson.id} className="flex items-center gap-3 p-3 bg-white border border-border rounded-md hover:border-surface-300 transition-all group">
-                          <div className="cursor-grab text-surface-300 group-hover:text-surface-500">
-                            <GripVertical className="w-4 h-4" />
+                    <DragDropContext onDragEnd={onDragEnd}>
+                      <Droppable droppableId="lessons">
+                        {(provided) => (
+                          <div 
+                            {...provided.droppableProps} 
+                            ref={provided.innerRef} 
+                            className="space-y-2"
+                          >
+                            {[...course.lessons].sort((a, b) => a.orderIndex - b.orderIndex).map((lesson, index) => (
+                              <Draggable key={lesson.id} draggableId={lesson.id} index={index}>
+                                {(provided) => (
+                                  <div 
+                                    ref={provided.innerRef}
+                                    {...provided.draggableProps}
+                                    className="flex items-center gap-3 p-3 bg-white border border-border rounded-md hover:border-surface-300 transition-all group shadow-sm sm:shadow-none"
+                                  >
+                                    <div 
+                                      {...provided.dragHandleProps}
+                                      className="cursor-grab text-surface-300 group-hover:text-surface-500 active:cursor-grabbing p-1"
+                                    >
+                                      <GripVertical className="w-4 h-4" />
+                                    </div>
+                                    <div className="w-8 h-8 rounded bg-surface-50 border border-border flex items-center justify-center">
+                                      {lesson.type === 'VIDEO' && <Video className="w-4 h-4 text-primary" />}
+                                      {lesson.type === 'DOCUMENT' && <FileText className="w-4 h-4 text-primary" />}
+                                      {lesson.type === 'IMAGE' && <ImageIcon className="w-4 h-4 text-primary" />}
+                                      {lesson.type === 'QUIZ' && <HelpCircle className="w-4 h-4 text-primary" />}
+                                    </div>
+                                    <div className="flex-1 min-w-0">
+                                      <p className="text-sm font-semibold text-surface-900 truncate">{lesson.title}</p>
+                                      <p className="text-[10px] text-surface-400 font-bold uppercase tracking-widest">{lesson.type}</p>
+                                    </div>
+                                    <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                                      <DropdownMenu trigger={<Button variant="ghost" size="icon-sm" className="rounded-full"><SettingsIcon className="w-3.5 h-3.5" /></Button>}>
+                                        <DropdownMenuItem onClick={() => handleOpenEditor(lesson)} icon={<FileEdit className="w-3.5 h-3.5" />}>Edit Module</DropdownMenuItem>
+                                        <DropdownMenuItem variant="danger" onClick={() => handleDeleteLesson(lesson.id)} icon={<Trash2 className="w-3.5 h-3.5" />}>Decommission</DropdownMenuItem>
+                                      </DropdownMenu>
+                                    </div>
+                                  </div>
+                                )}
+                              </Draggable>
+                            ))}
+                            {provided.placeholder}
                           </div>
-                          <div className="w-8 h-8 rounded bg-surface-50 border border-border flex items-center justify-center">
-                            {lesson.type === 'VIDEO' && <Video className="w-4 h-4 text-primary" />}
-                            {lesson.type === 'DOCUMENT' && <FileText className="w-4 h-4 text-primary" />}
-                            {lesson.type === 'IMAGE' && <ImageIcon className="w-4 h-4 text-primary" />}
-                            {lesson.type === 'QUIZ' && <HelpCircle className="w-4 h-4 text-primary" />}
-                          </div>
-                          <div className="flex-1 min-w-0">
-                            <p className="text-sm font-semibold text-surface-900 truncate">{lesson.title}</p>
-                            <p className="text-[10px] text-surface-400 font-bold uppercase tracking-widest">{lesson.type}</p>
-                          </div>
-                          <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                            <DropdownMenu trigger={<Button variant="ghost" size="icon-sm" className="rounded-full"><SettingsIcon className="w-3.5 h-3.5" /></Button>}>
-                              <DropdownMenuItem onClick={() => handleOpenEditor(lesson)} icon={<FileEdit className="w-3.5 h-3.5" />}>Edit Module</DropdownMenuItem>
-                              <DropdownMenuItem variant="danger" onClick={() => handleDeleteLesson(lesson.id)} icon={<Trash2 className="w-3.5 h-3.5" />}>Decommission</DropdownMenuItem>
-                            </DropdownMenu>
-                          </div>
-                        </div>
-                      ))}
-                    </div>
+                        )}
+                      </Droppable>
+                    </DragDropContext>
                   )}
                 </div>
               </TabPanel>
