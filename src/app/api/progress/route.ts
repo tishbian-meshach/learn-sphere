@@ -53,7 +53,7 @@ export async function PUT(request: NextRequest) {
     const courseProgress = allLessons > 0 ? (completedLessons / allLessons) * 100 : 0;
 
     // Update enrollment progress
-    await prisma.enrollment.update({
+    const updatedEnrollment = await prisma.enrollment.update({
       where: { userId_courseId: { userId, courseId: lesson.courseId } },
       data: {
         progress: courseProgress,
@@ -61,7 +61,18 @@ export async function PUT(request: NextRequest) {
         completedAt: courseProgress >= 100 ? new Date() : null,
         status: courseProgress >= 100 ? 'COMPLETED' : 'ACTIVE',
       },
+      include: {
+        user: { select: { email: true, name: true } },
+        course: { select: { title: true } },
+      },
     });
+
+    // Send Completion Email asynchronously only if just completed
+    if (courseProgress >= 100 && updatedEnrollment.user.email) {
+      const { sendCourseCompletionEmail } = await import('@/lib/mail');
+      sendCourseCompletionEmail(updatedEnrollment.user.email, updatedEnrollment.user.name || 'Learner', updatedEnrollment.course.title)
+        .catch(err => console.error('Failed to send completion email:', err));
+    }
 
     // Handle Badge Leveling on Course Completion
     if (courseProgress >= 100) {

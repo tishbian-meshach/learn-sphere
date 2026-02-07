@@ -146,6 +146,7 @@ export async function POST(request: NextRequest) {
         startedAt: new Date(),
       },
       include: {
+        user: { select: { email: true, name: true } },
         course: {
           include: {
             tags: true,
@@ -154,6 +155,14 @@ export async function POST(request: NextRequest) {
         },
       },
     });
+
+    // Send Enrollment Email asynchronously
+    if (enrollment.user.email) {
+      const { sendEnrollmentEmail } = await import('@/lib/mail');
+      const courseUrl = `${process.env.NEXT_PUBLIC_APP_URL}/learn/${courseId}`;
+      sendEnrollmentEmail(enrollment.user.email, enrollment.user.name || 'Learner', enrollment.course.title, courseUrl)
+        .catch(err => console.error('Failed to send enrollment email:', err));
+    }
 
     return NextResponse.json(enrollment, { status: 201 });
   } catch (error) {

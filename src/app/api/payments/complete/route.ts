@@ -32,13 +32,29 @@ export async function POST(request: NextRequest) {
     });
 
     if (payment && payment.status !== 'COMPLETED') {
-      await prisma.payment.update({
+      const updatedPayment = await prisma.payment.update({
         where: { id: payment.id },
         data: {
           status: 'COMPLETED',
           stripePaymentId: session.payment_intent as string,
         },
+        include: {
+          user: { select: { email: true, name: true } },
+          course: { select: { title: true } },
+        },
       });
+
+      // Send Payment Success Email
+      if (updatedPayment.user?.email) {
+        const { sendPaymentSuccessEmail } = await import('@/lib/mail');
+        sendPaymentSuccessEmail(
+          updatedPayment.user.email,
+          updatedPayment.user.name || 'Learner',
+          updatedPayment.course.title,
+          session.amount_total || 0,
+          session.id
+        ).catch(err => console.error('Failed to send payment email:', err));
+      }
     }
 
     // Check and create enrollment

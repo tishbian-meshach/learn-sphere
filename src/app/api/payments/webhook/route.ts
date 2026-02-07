@@ -51,15 +51,31 @@ export async function POST(request: NextRequest) {
 
       console.log(`💰 Payment found: ${payment.id}`);
 
-      await prisma.payment.update({
+      const updatedPayment = await prisma.payment.update({
         where: { id: payment.id },
         data: {
           status: 'COMPLETED',
           stripePaymentId: session.payment_intent as string,
         },
+        include: {
+          user: { select: { email: true, name: true } },
+          course: { select: { title: true } },
+        },
       });
 
       console.log(`✅ Payment updated to COMPLETED`);
+
+      // Send Payment Success Email
+      if (updatedPayment.user?.email) {
+        const { sendPaymentSuccessEmail } = await import('@/lib/mail');
+        sendPaymentSuccessEmail(
+          updatedPayment.user.email,
+          updatedPayment.user.name || 'Learner',
+          updatedPayment.course.title,
+          session.amount_total || 0,
+          session.id
+        ).catch(err => console.error('Failed to send payment email:', err));
+      }
 
       // Check if enrollment already exists
       const existingEnrollment = await prisma.enrollment.findUnique({

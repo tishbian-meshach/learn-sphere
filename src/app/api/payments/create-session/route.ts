@@ -15,6 +15,7 @@ export async function POST(request: NextRequest) {
     }
 
     const { courseId } = await request.json();
+    const origin = request.headers.get('origin') || process.env.NEXT_PUBLIC_APP_URL || 'https://elearnsphere.vercel.app';
 
     if (!courseId) {
       return NextResponse.json({ error: 'Course ID is required' }, { status: 400 });
@@ -88,8 +89,8 @@ export async function POST(request: NextRequest) {
         },
       ],
       mode: 'payment',
-      success_url: `${process.env.NEXT_PUBLIC_APP_URL}/payment-success?session_id={CHECKOUT_SESSION_ID}`,
-      cancel_url: `${process.env.NEXT_PUBLIC_APP_URL}/learner/courses`,
+      success_url: `${origin}/payment-success?session_id={CHECKOUT_SESSION_ID}`,
+      cancel_url: `${origin}/learner/courses`,
       metadata: {
         userId: user.id,
         courseId: courseId,

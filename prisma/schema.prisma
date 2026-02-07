@@ -69,6 +69,7 @@ model User {
   quizAttempts   QuizAttempt[]
   reviews        Review[]
   pointsLedger   PointsLedger[]
+  payments       Payment[]
 
   @@map("users")
 }
@@ -97,6 +98,7 @@ model Course {
   lessons      Lesson[]
   enrollments  Enrollment[]
   reviews      Review[]
+  payments     Payment[]
 
   @@index([instructorId])
   @@index([isPublished])
@@ -289,7 +291,9 @@ enum PaymentStatus {
 model Payment {
   id                String        @id @default(cuid())
   userId            String
+  user              User          @relation(fields: [userId], references: [id], onDelete: Cascade)
   courseId          String
+  course            Course        @relation(fields: [courseId], references: [id], onDelete: Cascade)
   stripeSessionId   String        @unique
   stripePaymentId   String?
   amount            Decimal       @db.Decimal(10, 2)

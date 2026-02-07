@@ -41,6 +41,14 @@ export async function POST(request: NextRequest) {
           role: role || 'LEARNER',
         }
       });
+
+      // 3. Send Welcome Email asynchronously
+      if (email) {
+        const { sendProvisionWelcomeEmail } = await import('@/lib/mail');
+        sendProvisionWelcomeEmail(email, name || 'Learner', password || 'Check your admin console')
+          .catch(err => console.error('Failed to send provision email:', err));
+      }
+
       return NextResponse.json(newUser, { status: 201 });
     }
 
