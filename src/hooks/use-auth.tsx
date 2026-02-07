@@ -84,8 +84,38 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   const signIn = async (email: string, password: string) => {
-    const { error } = await supabase.auth.signInWithPassword({ email, password });
-    return { error: error as Error | null };
+    try {
+      // 1️⃣ Check if account exists
+      const checkRes = await fetch(`/api/users?email=${encodeURIComponent(email)}`);
+      if (checkRes.ok) {
+        const users = await checkRes.json();
+        if (!users || users.length === 0) {
+          return { error: new Error('No account found with this email. Please sign up first.') };
+        }
+      }
+
+      // 2️⃣ & 3️⃣ Attempt sign-in (checks password and email verification)
+      const { error } = await supabase.auth.signInWithPassword({ email, password });
+      
+      if (error) {
+        // Email not verified
+        if (error.message.includes('Email not confirmed')) {
+          return { error: new Error('Your email is not verified. Please verify your email to continue.') };
+        }
+        // Incorrect password (we already verified the account exists)
+        if (error.message.includes('Invalid login credentials')) {
+          return { error: new Error('Incorrect password. Please try again.') };
+        }
+        // Other errors
+        return { error: error as Error };
+      }
+
+      // ✅ Successful login
+      return { error: null };
+    } catch (error) {
+      console.error('Sign in error:', error);
+      return { error: error as Error };
+    }
   };
 
   const signUp = async (email: string, password: string, name: string, role: Role = 'LEARNER') => {

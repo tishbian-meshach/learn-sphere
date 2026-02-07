@@ -40,10 +40,13 @@ export default function SignInPage() {
     try {
       const { error } = await signIn(email, password);
       if (error) {
-        if (error.message.includes('Email not confirmed')) {
-          toast.error('Please verify your email address before signing in.');
-        } else if (error.message.includes('Invalid login credentials')) {
-          toast.error('Invalid email or password. Please try again.');
+        // Display appropriate error message based on scenario
+        if (error.message.includes('email is not verified')) {
+          toast.error(error.message);
+          // Redirect to resend verification page after a short delay
+          setTimeout(() => {
+            router.push(`/resend-verification?email=${encodeURIComponent(email)}`);
+          }, 2000);
         } else {
           toast.error(error.message);
         }
