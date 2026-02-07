@@ -18,18 +18,20 @@ import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { CardSkeleton } from '@/components/ui/skeleton';
 import { EmptyState } from '@/components/ui/empty-state';
+import { Select } from '@/components/ui/select';
 import { useAuth } from '@/hooks/use-auth';
 import { cn, formatDuration } from '@/lib/utils';
 import toast from 'react-hot-toast';
 
-  interface Course {
+interface Course {
   id: string;
   title: string;
   description: string | null;
   imageUrl: string | null;
   instructor: { id: string; name: string | null };
-  price: number;
-  level: string;
+  price: number | null;
+  level: string | null;
+  subject: string | null;
   _count: {
     lessons: number;
     enrollments: number;
@@ -49,6 +51,10 @@ export default function BrowseCoursesPage() {
   const [courses, setCourses] = useState<Course[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
+  const [selectedLevel, setSelectedLevel] = useState<string>('all');
+  const [selectedPrice, setSelectedPrice] = useState<string>('all');
+  const [selectedSubject, setSelectedSubject] = useState<string>('all');
+  const [showFilters, setShowFilters] = useState(false);
 
   useEffect(() => {
     if (user?.id) fetchCourses();
@@ -68,46 +74,55 @@ export default function BrowseCoursesPage() {
     }
   };
 
-  const filteredCourses = courses.filter((c) =>
-    c.title.toLowerCase().includes(searchQuery.toLowerCase())
-  );
+  const filteredCourses = courses.filter((c) => {
+    const matchesSearch = c.title.toLowerCase().includes(searchQuery.toLowerCase());
+    const matchesLevel = selectedLevel === 'all' || c.level === selectedLevel;
+    const matchesPrice = selectedPrice === 'all' || (
+      selectedPrice === 'FREE' ? (c.price === 0 || c.price === null) : (c.price !== null && c.price > 0)
+    );
+    const matchesSubject = selectedSubject === 'all' || c.subject === selectedSubject;
+
+    return matchesSearch && matchesLevel && matchesPrice && matchesSubject;
+  });
+
+  const uniqueSubjects = Array.from(new Set(courses.map(c => c.subject).filter(Boolean))) as string[];
 
   const getCourseButton = (course: Course) => {
     if (course.userStatus?.status === 'COMPLETED' || course.userStatus?.progress === 100) {
       return (
-        <Button 
-          className="w-full bg-emerald-500 hover:bg-emerald-600 text-white" 
-          size="sm" 
-          onClick={() => router.push(`/learn/${course.id}`)} 
+        <Button
+          className="w-full bg-emerald-500 hover:bg-emerald-600 text-white"
+          size="sm"
+          onClick={() => router.push(`/learn/${course.id}`)}
           leftIcon={<CheckCircle className="w-4 h-4" />}
         >
-           Completed
+          Completed
         </Button>
       );
     }
-    
+
     if (course.userStatus?.enrolled) {
       return (
-        <Button 
-          className="w-full" 
+        <Button
+          className="w-full"
           variant="secondary"
-          size="sm" 
-          onClick={() => router.push(`/learn/${course.id}`)} 
+          size="sm"
+          onClick={() => router.push(`/learn/${course.id}`)}
           rightIcon={<ChevronRight className="w-4 h-4" />}
         >
-           Resume Course
+          Resume Course
         </Button>
       );
     }
 
     return (
-      <Button 
-        className="w-full" 
-        size="sm" 
-        onClick={() => router.push(`/learn/${course.id}`)} 
+      <Button
+        className="w-full"
+        size="sm"
+        onClick={() => router.push(`/learn/${course.id}`)}
         rightIcon={<ChevronRight className="w-4 h-4" />}
       >
-         Enroll Now
+        Enroll Now
       </Button>
     );
   };
@@ -117,26 +132,84 @@ export default function BrowseCoursesPage() {
       <div className="flex flex-col md:flex-row md:items-end justify-between gap-6">
         <div className="space-y-1">
           <h1 className="text-2xl font-extrabold text-surface-900 tracking-tight flex items-center gap-2">
-             <GraduationCap className="w-6 h-6 text-primary" /> Learning Center
+            <GraduationCap className="w-6 h-6 text-primary" /> Learning Center
           </h1>
           <p className="text-sm text-surface-500">Professional certification courses and skill development modules.</p>
         </div>
       </div>
 
-      {/* Filter Bar - Minimal */}
-      <div className="flex items-center gap-4 border-b border-border pb-6">
-        <div className="flex-1 max-w-sm">
-           <Input
-             placeholder="Search by keyword, subject, or provider..."
-             value={searchQuery}
-             onChange={(e) => setSearchQuery(e.target.value)}
-             leftIcon={<Search className="w-4 h-4" />}
-             className="bg-white shadow-none"
-           />
+      {/* Filter Bar */}
+      <div className="flex flex-col gap-4 border-b border-border pb-6">
+        <div className="flex items-center gap-4">
+          <div className="flex-1 max-w-sm">
+            <Input
+              placeholder="Search by keyword, subject, or provider..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              leftIcon={<Search className="w-4 h-4" />}
+              className="bg-white shadow-none"
+            />
+          </div>
+          <Button
+            variant={showFilters ? "secondary" : "outline"}
+            size="sm"
+            leftIcon={<Filter className="w-4 h-4" />}
+            onClick={() => setShowFilters(!showFilters)}
+          >
+            {showFilters ? 'Hide Filters' : 'Filters'}
+          </Button>
+          {(selectedLevel !== 'all' || selectedPrice !== 'all' || selectedSubject !== 'all' || searchQuery !== '') && (
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => {
+                setSelectedLevel('all');
+                setSelectedPrice('all');
+                setSelectedSubject('all');
+                setSearchQuery('');
+              }}
+              className="text-surface-500 hover:text-primary"
+            >
+              Clear All
+            </Button>
+          )}
         </div>
-        <Button variant="outline" size="sm" leftIcon={<Filter className="w-4 h-4" />}>
-           Course Tracks
-        </Button>
+
+        {showFilters && (
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 p-4 bg-surface-50 border border-border rounded-lg animate-in fade-in slide-in-from-top-2 duration-300">
+            <Select
+              label="Filter by Level"
+              value={selectedLevel}
+              onChange={setSelectedLevel}
+              options={[
+                { label: 'All Levels', value: 'all' },
+                { label: 'Beginner', value: 'BEGINNER' },
+                { label: 'Intermediate', value: 'INTERMEDIATE' },
+                { label: 'Advanced', value: 'ADVANCED' },
+              ]}
+            />
+            <Select
+              label="Filter by Price"
+              value={selectedPrice}
+              onChange={setSelectedPrice}
+              options={[
+                { label: 'All Prices', value: 'all' },
+                { label: 'Free', value: 'FREE' },
+                { label: 'Paid', value: 'PAID' },
+              ]}
+            />
+            <Select
+              label="Filter by Subject"
+              value={selectedSubject}
+              onChange={setSelectedSubject}
+              options={[
+                { label: 'All Subjects', value: 'all' },
+                ...uniqueSubjects.map(subject => ({ label: subject, value: subject }))
+              ]}
+              searchable
+            />
+          </div>
+        )}
       </div>
 
       {/* Course Grid */}
@@ -153,30 +226,50 @@ export default function BrowseCoursesPage() {
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           {filteredCourses.map((course) => (
             <div key={course.id} className="card group flex flex-col p-4 hover:border-primary/20 transition-all duration-300">
-               <div className="aspect-video bg-surface-50 border border-border rounded overflow-hidden relative mb-4">
-                  {course.imageUrl ? (
-                    <img src={course.imageUrl} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
-                  ) : (
-                    <div className="w-full h-full flex items-center justify-center">
-                       <BookOpen className="w-10 h-10 text-surface-200" />
+              <div className="aspect-video bg-surface-50 border border-border rounded overflow-hidden relative mb-4">
+                {course.imageUrl ? (
+                  <img src={course.imageUrl} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
+                ) : (
+                  <div className="w-full h-full flex items-center justify-center">
+                    <BookOpen className="w-10 h-10 text-surface-200" />
+                  </div>
+                )}
+                <div className="absolute top-2 left-2">
+                  <Badge variant="secondary" size="sm" className="bg-white/90 shadow-sm backdrop-blur-sm px-1.5">{course.level}</Badge>
+                </div>
+              </div>
+
+              <div className="flex-1 flex flex-col">
+                <h3 className="text-sm font-extrabold text-surface-900 line-clamp-2 mb-2 group-hover:text-primary transition-colors leading-tight">
+                  {course.title}
+                </h3>
+
+                <div className="flex items-center gap-2 text-[10px] font-bold text-surface-400 uppercase tracking-widest mb-4">
+                  <span>{course.instructor.name || 'Staff Instructor'}</span>
+                  <span className="w-1 h-1 rounded-full bg-border" />
+                  <span>{course._count?.lessons ?? 0} Modules</span>
+                </div>
+
+                <div className="mt-auto space-y-4">
+                  <div className="flex items-center justify-between pt-4 border-t border-border">
+                    <div className="flex items-center gap-1.5 text-surface-500">
+                      <Star className="w-3.5 h-3.5 text-amber-400 fill-amber-400" />
+                      <span className="text-xs font-bold">{course.rating || '5.0'}</span>
+                      <span className="text-[10px]">({course._count?.enrollments ?? 0})</span>
                     </div>
-                  )}
-                  <div className="absolute top-2 left-2">
-                    <Badge variant="secondary" size="sm" className="bg-white/90 shadow-sm backdrop-blur-sm px-1.5">{course.level}</Badge>
-                  </div>
-               </div>
-
-               <div className="flex-1 flex flex-col">
-                  <h3 className="text-sm font-extrabold text-surface-900 line-clamp-2 mb-2 group-hover:text-primary transition-colors leading-tight">
-                    {course.title}
-                  </h3>
-                  
-                  <div className="flex items-center gap-2 text-[10px] font-bold text-surface-400 uppercase tracking-widest mb-4">
-                    <span>{course.instructor.name || 'Staff Instructor'}</span>
-                    <span className="w-1 h-1 rounded-full bg-border" />
-                    <span>{course._count?.lessons ?? 0} Modules</span>
+                    {(course.price === null || course.price === 0) ? (
+                      <span className="px-2.5 py-1 rounded-full bg-emerald-50 text-emerald-600 text-[10px] font-bold uppercase tracking-wider">
+                        Free
+                      </span>
+                    ) : (
+                      <div className="flex items-baseline gap-0.5">
+                        <span className="text-[10px] font-bold text-surface-400">₹</span>
+                        <span className="text-lg font-extrabold text-surface-900 tracking-tight">{Math.floor(course.price)}</span>
+                      </div>
+                    )}
                   </div>
 
+<<<<<<< Updated upstream
                   <div className="mt-auto space-y-4">
                     <div className="flex items-center justify-between pt-4 border-t border-border">
                        <div className="flex items-center gap-1.5 text-surface-500">
@@ -199,6 +292,11 @@ export default function BrowseCoursesPage() {
                     {getCourseButton(course)}
                   </div>
                </div>
+=======
+                  {getCourseButton(course)}
+                </div>
+              </div>
+>>>>>>> Stashed changes
             </div>
           ))}
         </div>

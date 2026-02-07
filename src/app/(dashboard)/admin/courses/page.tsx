@@ -26,6 +26,7 @@ import { Modal } from '@/components/ui/modal';
 import { CardSkeleton } from '@/components/ui/skeleton';
 import { EmptyState } from '@/components/ui/empty-state';
 import { DropdownMenu, DropdownMenuItem } from '@/components/ui/dropdown-menu';
+import { Select } from '@/components/ui/select';
 import { useAuth } from '@/hooks/use-auth';
 import { cn, formatDuration } from '@/lib/utils';
 import toast from 'react-hot-toast';
@@ -37,6 +38,9 @@ interface Course {
   imageUrl: string | null;
   status: string;
   visibility: string;
+  level: string | null;
+  price: number | null;
+  subject: string | null;
   _count: {
     lessons: number;
     enrollments: number;
@@ -52,6 +56,10 @@ export default function AdminCoursesPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [view, setView] = useState<'grid' | 'list'>('grid');
   const [searchQuery, setSearchQuery] = useState('');
+  const [selectedLevel, setSelectedLevel] = useState<string>('all');
+  const [selectedPrice, setSelectedPrice] = useState<string>('all');
+  const [selectedSubject, setSelectedSubject] = useState<string>('all');
+  const [showFilters, setShowFilters] = useState(false);
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
   const [newCourseTitle, setNewCourseTitle] = useState('');
 
@@ -91,9 +99,18 @@ export default function AdminCoursesPage() {
     }
   };
 
-  const filteredCourses = courses.filter((c) =>
-    c.title.toLowerCase().includes(searchQuery.toLowerCase())
-  );
+  const filteredCourses = courses.filter((c) => {
+    const matchesSearch = c.title.toLowerCase().includes(searchQuery.toLowerCase());
+    const matchesLevel = selectedLevel === 'all' || c.level === selectedLevel;
+    const matchesPrice = selectedPrice === 'all' || (
+      selectedPrice === 'FREE' ? (c.price === 0 || c.price === null) : (c.price !== null && c.price > 0)
+    );
+    const matchesSubject = selectedSubject === 'all' || c.subject === selectedSubject;
+
+    return matchesSearch && matchesLevel && matchesPrice && matchesSubject;
+  });
+
+  const uniqueSubjects = Array.from(new Set(courses.map(c => c.subject).filter(Boolean))) as string[];
 
   const StatusBadge = ({ status }: { status: string }) => {
     switch (status) {
@@ -117,12 +134,56 @@ export default function AdminCoursesPage() {
           <p className="text-sm text-surface-500">Inventory and lifecycle management of your courses.</p>
         </div>
         <div className="flex items-center gap-3">
-          <Button variant="outline" size="sm" leftIcon={<Filter className="w-4 h-4" />}>Filters</Button>
+          <Button
+            variant={showFilters ? "secondary" : "outline"}
+            size="sm"
+            leftIcon={<Filter className="w-4 h-4" />}
+            onClick={() => setShowFilters(!showFilters)}
+          >
+            {showFilters ? 'Hide Filters' : 'Filters'}
+          </Button>
           <Button size="sm" leftIcon={<Plus className="w-4 h-4" />} onClick={() => setIsCreateModalOpen(true)}>
             New Course
           </Button>
         </div>
       </div>
+
+      {/* Filter Bar */}
+      {showFilters && (
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 p-4 bg-surface-50 border border-border rounded-lg animate-in fade-in slide-in-from-top-2 duration-300">
+          <Select
+            label="Filter by Level"
+            value={selectedLevel}
+            onChange={setSelectedLevel}
+            options={[
+              { label: 'All Levels', value: 'all' },
+              { label: 'Beginner', value: 'BEGINNER' },
+              { label: 'Intermediate', value: 'INTERMEDIATE' },
+              { label: 'Advanced', value: 'ADVANCED' },
+            ]}
+          />
+          <Select
+            label="Filter by Price"
+            value={selectedPrice}
+            onChange={setSelectedPrice}
+            options={[
+              { label: 'All Prices', value: 'all' },
+              { label: 'Free', value: 'FREE' },
+              { label: 'Paid', value: 'PAID' },
+            ]}
+          />
+          <Select
+            label="Filter by Subject"
+            value={selectedSubject}
+            onChange={setSelectedSubject}
+            options={[
+              { label: 'All Subjects', value: 'all' },
+              ...uniqueSubjects.map(subject => ({ label: subject, value: subject }))
+            ]}
+            searchable
+          />
+        </div>
+      )}
 
       {/* Toolbar */}
       <div className="flex items-center justify-between border-b border-border pb-4">
@@ -134,6 +195,23 @@ export default function AdminCoursesPage() {
             leftIcon={<Search className="w-4 h-4" />}
             className="bg-white"
           />
+        </div>
+        <div className="flex items-center gap-2 ml-4">
+          {(selectedLevel !== 'all' || selectedPrice !== 'all' || selectedSubject !== 'all' || searchQuery !== '') && (
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => {
+                setSelectedLevel('all');
+                setSelectedPrice('all');
+                setSelectedSubject('all');
+                setSearchQuery('');
+              }}
+              className="text-surface-500 hover:text-primary"
+            >
+              Clear All
+            </Button>
+          )}
         </div>
         <div className="flex items-center gap-1 bg-surface-100 p-1 rounded-md ml-4">
           <Button
@@ -177,17 +255,17 @@ export default function AdminCoursesPage() {
                   <BookOpen className="w-12 h-12 text-surface-200" />
                 )}
                 <div className="absolute top-3 right-3 opacity-0 group-hover:opacity-100 transition-opacity">
-                   <DropdownMenu trigger={<Button variant="secondary" size="icon-sm" className="bg-white/90 backdrop-blur-sm shadow-sm"><MoreVertical className="w-4 h-4" /></Button>}>
-                      <DropdownMenuItem onClick={() => router.push(`/admin/courses/${course.id}`)}>
-                        <FileEdit className="w-4 h-4 mr-2" /> Edit Details
-                      </DropdownMenuItem>
-                      <DropdownMenuItem onClick={() => window.open(`/courses/${course.id}`, '_blank')}>
-                        <ExternalLink className="w-4 h-4 mr-2" /> Preview
-                      </DropdownMenuItem>
-                      <DropdownMenuItem className="text-destructive">
-                        <Trash2 className="w-4 h-4 mr-2" /> Delete
-                      </DropdownMenuItem>
-                   </DropdownMenu>
+                  <DropdownMenu trigger={<Button variant="secondary" size="icon-sm" className="bg-white/90 backdrop-blur-sm shadow-sm"><MoreVertical className="w-4 h-4" /></Button>}>
+                    <DropdownMenuItem onClick={() => router.push(`/admin/courses/${course.id}`)}>
+                      <FileEdit className="w-4 h-4 mr-2" /> Edit Details
+                    </DropdownMenuItem>
+                    <DropdownMenuItem onClick={() => window.open(`/courses/${course.id}`, '_blank')}>
+                      <ExternalLink className="w-4 h-4 mr-2" /> Preview
+                    </DropdownMenuItem>
+                    <DropdownMenuItem className="text-destructive">
+                      <Trash2 className="w-4 h-4 mr-2" /> Delete
+                    </DropdownMenuItem>
+                  </DropdownMenu>
                 </div>
               </div>
               <div className="p-5 flex-1 flex flex-col">
