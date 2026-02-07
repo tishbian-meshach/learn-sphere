@@ -1,4 +1,4 @@
-import { PrismaClient } from '@prisma/client';
+import { PrismaClient, BadgeLevel } from '@prisma/client';
 import { createClient } from '@supabase/supabase-js';
 
 const prisma = new PrismaClient();
@@ -24,13 +24,13 @@ interface DemoUser {
   name: string;
   role: 'ADMIN' | 'INSTRUCTOR' | 'LEARNER';
   totalPoints?: number;
-  badgeLevel?: string;
+  badgeLevel?: BadgeLevel;
 }
 
 const demoUsers: DemoUser[] = [
   { email: 'admin@learnsphere.com', name: 'Admin User', role: 'ADMIN' },
   { email: 'instructor@learnsphere.com', name: 'Sarah Johnson', role: 'INSTRUCTOR' },
-  { email: 'learner@learnsphere.com', name: 'John Doe', role: 'LEARNER', totalPoints: 35, badgeLevel: 'EXPLORER' },
+  { email: 'learner@learnsphere.com', name: 'John Doe', role: 'LEARNER', totalPoints: 35, badgeLevel: BadgeLevel.EXPLORER },
 ];
 
 async function createOrGetSupabaseUser(user: DemoUser): Promise<string> {
@@ -82,7 +82,7 @@ async function main() {
         name: user.name,
         role: user.role,
         totalPoints: user.totalPoints || 0,
-        badgeLevel: user.badgeLevel || 'NEWBIE',
+        badgeLevel: user.badgeLevel || BadgeLevel.NEWBIE,
       },
     });
   }
