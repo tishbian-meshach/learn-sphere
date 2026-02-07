@@ -57,13 +57,13 @@ export async function GET(
       return NextResponse.json({ error: 'Subject not found in registry' }, { status: 404 });
     }
 
-    const completedCoursesCount = user.enrollments.filter(e => e.status === 'COMPLETED').length;
-    const badgePoints = Math.min(completedCoursesCount * 20, 120);
+    const completedCourses = user.enrollments.filter(e => e.status === 'COMPLETED').length;
+    const badgePoints = Math.min(completedCourses * 20, 120);
 
     return NextResponse.json({
       ...user,
       badgePoints,
-      completedCoursesCount,
+      completedCourses,
     });
   } catch (error) {
     console.error('Error fetching subject dossier:', error);
@@ -101,7 +101,7 @@ export async function PATCH(
 ) {
   try {
     const { role } = await request.json();
-    
+
     const user = await prisma.user.update({
       where: { id: params.id },
       data: { role },

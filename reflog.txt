@@ -1,0 +1,16 @@
+363609e HEAD@{0}: reset: moving to HEAD~1
+d5be67d HEAD@{1}: commit: Removed unwanted module
+363609e HEAD@{2}: reset: moving to HEAD
+363609e HEAD@{3}: reset: moving to 363609e509725b5453eb8e6c0a7cddfa69ade6c1
+abf6e11 HEAD@{4}: reset: moving to HEAD
+abf6e11 HEAD@{5}: reset: moving to HEAD
+abf6e11 HEAD@{6}: reset: moving to HEAD
+abf6e11 HEAD@{7}: commit: Resolve conflict in course page: merged thumbnail and save button
+363609e HEAD@{8}: pull origin main: Fast-forward
+1d3c6bb HEAD@{9}: reset: moving to HEAD
+1d3c6bb HEAD@{10}: reset: moving to HEAD
+1d3c6bb HEAD@{11}: pull origin main: Fast-forward
+80e33e5 HEAD@{12}: reset: moving to HEAD
+80e33e5 HEAD@{13}: commit: Profile Management
+d4372d2 HEAD@{14}: pull origin main: Fast-forward
+8a6e548 HEAD@{15}: clone: from https://github.com/tishbian-meshach/learn-sphere.git

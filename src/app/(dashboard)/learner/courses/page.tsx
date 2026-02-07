@@ -12,6 +12,7 @@ import {
   Filter,
   GraduationCap,
   CheckCircle,
+  Award,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -51,7 +52,7 @@ interface Course {
 
 export default function BrowseCoursesPage() {
   const router = useRouter();
-  const { user } = useAuth();
+  const { user, profile } = useAuth();
   const [courses, setCourses] = useState<Course[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
@@ -104,10 +105,10 @@ export default function BrowseCoursesPage() {
       selectedPrice === 'FREE' ? (c.price === 0 || c.price === null) : (c.price !== null && c.price > 0)
     );
     const matchesSubject = selectedSubject === 'all' || c.subject === selectedSubject;
-    const matchesTags = selectedTags.length === 0 || selectedTags.every(tag => 
+    const matchesTags = selectedTags.length === 0 || selectedTags.every(tag =>
       c.tags.some(t => t.name === tag)
     );
-    
+
     return matchesSearch && matchesLevel && matchesPrice && matchesSubject && matchesTags;
   });
 
@@ -117,23 +118,23 @@ export default function BrowseCoursesPage() {
     if (course.userStatus?.status === 'COMPLETED' || course.userStatus?.progress === 100) {
       return (
         <div className="flex gap-2">
-           <Button
-             className="flex-1 bg-emerald-500 hover:bg-emerald-600 text-white"
-             size="sm"
-             onClick={() => router.push(`/learn/${course.id}`)}
-             leftIcon={<CheckCircle className="w-4 h-4" />}
-           >
-             Completed
-           </Button>
-           <Button
-             variant="outline"
-             className="px-3"
-             size="sm"
-             onClick={() => setSelectedCertificate({ courseId: course.id, title: course.title })}
-             title="View Certificate"
-           >
-             <GraduationCap className="w-4 h-4" />
-           </Button>
+          <Button
+            className="flex-1 bg-emerald-500 hover:bg-emerald-600 text-white"
+            size="sm"
+            onClick={() => router.push(`/learn/${course.id}`)}
+            leftIcon={<CheckCircle className="w-4 h-4" />}
+          >
+            Completed
+          </Button>
+          <Button
+            variant="primary"
+            className="px-3"
+            size="sm"
+            onClick={() => setSelectedCertificate({ courseId: course.id, title: course.title })}
+            title="View Certificate"
+          >
+            <Award className="w-4 h-4" />
+          </Button>
         </div>
       );
     }
@@ -252,27 +253,27 @@ export default function BrowseCoursesPage() {
         )}
 
         {showFilters && availableTags.length > 0 && (
-           <div className="flex flex-wrap gap-2 pt-2 animate-in fade-in duration-500">
-              <p className="text-[10px] font-bold text-surface-400 uppercase tracking-widest self-center mr-2">Filter by Tag:</p>
-              {availableTags.map((tag) => (
-                 <button
-                    key={tag}
-                    onClick={() => {
-                       setSelectedTags(prev => 
-                          prev.includes(tag) ? prev.filter(t => t !== tag) : [...prev, tag]
-                       );
-                    }}
-                    className={cn(
-                       "px-2.5 py-1 rounded-full text-[10px] font-bold transition-all border",
-                       selectedTags.includes(tag) 
-                          ? "bg-primary border-primary text-white shadow-sm scale-105" 
-                          : "bg-white border-border text-surface-500 hover:border-primary/30"
-                    )}
-                 >
-                    {tag}
-                 </button>
-              ))}
-           </div>
+          <div className="flex flex-wrap gap-2 pt-2 animate-in fade-in duration-500">
+            <p className="text-[10px] font-bold text-surface-400 uppercase tracking-widest self-center mr-2">Filter by Tag:</p>
+            {availableTags.map((tag) => (
+              <button
+                key={tag}
+                onClick={() => {
+                  setSelectedTags(prev =>
+                    prev.includes(tag) ? prev.filter(t => t !== tag) : [...prev, tag]
+                  );
+                }}
+                className={cn(
+                  "px-2.5 py-1 rounded-full text-[10px] font-bold transition-all border",
+                  selectedTags.includes(tag)
+                    ? "bg-primary border-primary text-white shadow-sm scale-105"
+                    : "bg-white border-border text-surface-500 hover:border-primary/30"
+                )}
+              >
+                {tag}
+              </button>
+            ))}
+          </div>
         )}
       </div>
 
@@ -318,8 +319,8 @@ export default function BrowseCoursesPage() {
 
                 <div className="flex flex-wrap gap-1 mb-4">
                   {course.tags.slice(0, 3).map((tag) => (
-                    <span 
-                      key={tag.id} 
+                    <span
+                      key={tag.id}
                       className="px-1.5 py-0.5 rounded bg-surface-50 border border-border text-[9px] font-bold text-surface-500 group-hover:bg-white transition-colors"
                     >
                       {tag.name}
@@ -360,8 +361,8 @@ export default function BrowseCoursesPage() {
       )}
       {/* Certificate Overlay */}
       {selectedCertificate && user && (
-        <Certificate 
-          userName={user.id ? 'Distinguished Practitioner' : ''} // We might need profile here, but user.id is verified. Ideally use profile context if available or fetch.
+        <Certificate
+          userName={profile?.name || 'Distinguished Practitioner'}
           courseTitle={selectedCertificate.title}
           completionDate={new Date().toISOString()} // In a real app, this should come from enrollment data
           certificateId={`CRT-${selectedCertificate.courseId.slice(-6).toUpperCase()}-${user.id.slice(-6).toUpperCase()}`}
