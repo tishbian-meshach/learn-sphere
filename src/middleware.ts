@@ -1,37 +1,65 @@
-import { type NextRequest, NextResponse } from 'next/server';
-import { updateSession } from '@/lib/supabase/middleware';
+import { createServerClient, type CookieOptions } from '@supabase/ssr';
+import { NextResponse, type NextRequest } from 'next/server';
 
 export async function middleware(request: NextRequest) {
-  // Update the session
-  const response = await updateSession(request);
+  let response = NextResponse.next({
+    request: {
+      headers: request.headers,
+    },
+  });
 
-  // Get the pathname
-  const { pathname } = request.nextUrl;
-
-  // Public routes that don't require authentication
-  const publicRoutes = ['/', '/sign-in', '/sign-up', '/courses'];
-  const isPublicRoute = publicRoutes.some(
-    (route) => pathname === route || pathname.startsWith('/courses/')
+  const supabase = createServerClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+    {
+      cookies: {
+        get(name: string) {
+          return request.cookies.get(name)?.value;
+        },
+        set(name: string, value: string, options: CookieOptions) {
+          request.cookies.set({ name, value, ...options });
+          response = NextResponse.next({
+            request: {
+              headers: request.headers,
+            },
+          });
+          response.cookies.set({ name, value, ...options });
+        },
+        remove(name: string, options: CookieOptions) {
+          request.cookies.set({ name, value: '', ...options });
+          response = NextResponse.next({
+            request: {
+              headers: request.headers,
+            },
+          });
+          response.cookies.set({ name, value: '', ...options });
+        },
+      },
+    }
   );
 
-  // API routes should be handled separately
-  if (pathname.startsWith('/api')) {
-    return response;
-  }
+  const { data: { user } } = await supabase.auth.getUser();
+  const { pathname } = request.nextUrl;
 
-  // Protected routes
+  // Protect dashboard routes
+  // admin, learner, learn are protected
   const protectedRoutes = ['/admin', '/learner', '/learn'];
   const isProtectedRoute = protectedRoutes.some((route) => pathname.startsWith(route));
 
-  if (isProtectedRoute) {
-    // Check for auth cookie (simplified check for demo)
-    const authCookie = request.cookies.get('sb-fzjdrzihvveowdimbbks-auth-token');
-    
-    if (!authCookie) {
-      const signInUrl = new URL('/sign-in', request.url);
-      signInUrl.searchParams.set('redirect', pathname);
-      return NextResponse.redirect(signInUrl);
-    }
+  if (isProtectedRoute && !user) {
+    const url = new URL('/sign-in', request.url);
+    url.searchParams.set('redirect', pathname);
+    return NextResponse.redirect(url);
+  }
+
+  // Redirect logged in users away from auth pages
+  if (user && (pathname === '/sign-in' || pathname === '/sign-up')) {
+    // If we have a user and they are on sign-in/sign-up, they should be redirected
+    // to their respective dashboards. Since middleware doesn't easily know the role
+    // from Prisma, we'll redirect to a common loading/callback page or just let
+    // the page's own useEffect handle it. 
+    // For now, let's redirect to / as a safe default or keep it simple.
+    return NextResponse.redirect(new URL('/', request.url));
   }
 
   return response;

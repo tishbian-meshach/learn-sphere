@@ -21,6 +21,7 @@ interface AuthContextType {
   isLoading: boolean;
   signIn: (email: string, password: string) => Promise<{ error: Error | null }>;
   signUp: (email: string, password: string, name: string, role?: Role) => Promise<{ error: Error | null }>;
+  signInWithGoogle: (role?: Role) => Promise<{ error: Error | null }>;
   signOut: () => Promise<void>;
   refreshProfile: () => Promise<void>;
 }
@@ -56,7 +57,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       try {
         const { data: { session } } = await supabase.auth.getSession();
         setUser(session?.user ?? null);
-        
+
         if (session?.user) {
           await fetchProfile(session.user.id);
         }
@@ -71,7 +72,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
       setUser(session?.user ?? null);
-      
+
       if (session?.user) {
         await fetchProfile(session.user.id);
       } else {
@@ -88,28 +89,58 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   };
 
   const signUp = async (email: string, password: string, name: string, role: Role = 'LEARNER') => {
-    const { data, error } = await supabase.auth.signUp({ 
-      email, 
-      password,
-      options: {
-        data: { name, role }
+    try {
+      // 1. Check if user already exists in our Prisma DB
+      const checkRes = await fetch(`/api/users?email=${encodeURIComponent(email)}`);
+      if (checkRes.ok) {
+        const users = await checkRes.json();
+        if (users && users.length > 0) {
+          return { error: new Error('An account with this email already exists. Please sign in instead.') };
+        }
       }
-    });
-    
-    if (!error && data.user) {
-      // Create user profile in database
-      await fetch('/api/users', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          id: data.user.id,
-          email,
-          name,
-          role,
-        }),
+
+      // 2. Proceed with Supabase sign up
+      const { data, error } = await supabase.auth.signUp({
+        email,
+        password,
+        options: {
+          data: { name, role }
+        }
       });
+
+      if (!error && data.user) {
+        // Create user profile in database
+        await fetch('/api/users', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            id: data.user.id,
+            email,
+            name,
+            role,
+          }),
+        });
+      }
+
+      return { error: error as Error | null };
+    } catch (error) {
+      console.error('Sign up error:', error);
+      return { error: error as Error | null };
     }
-    
+  };
+
+  const signInWithGoogle = async (role?: Role) => {
+    const redirectTo = new URL(`${window.location.origin}/auth/callback`);
+    if (role) {
+      redirectTo.searchParams.set('role', role);
+    }
+
+    const { error } = await supabase.auth.signInWithOAuth({
+      provider: 'google',
+      options: {
+        redirectTo: redirectTo.toString(),
+      },
+    });
     return { error: error as Error | null };
   };
 
@@ -119,7 +150,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   };
 
   return (
-    <AuthContext.Provider value={{ user, profile, isLoading, signIn, signUp, signOut, refreshProfile }}>
+    <AuthContext.Provider value={{ user, profile, isLoading, signIn, signUp, signInWithGoogle, signOut, refreshProfile }}>
       {children}
     </AuthContext.Provider>
   );
