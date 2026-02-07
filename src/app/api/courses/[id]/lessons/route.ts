@@ -55,22 +55,39 @@ export async function POST(
     });
     const orderIndex = (lastLesson?.orderIndex ?? -1) + 1;
 
-    const lesson = await prisma.lesson.create({
-      data: {
-        title,
-        description,
-        type: type || 'VIDEO',
-        videoUrl,
-        duration: duration ? parseInt(duration) : null,
-        documentUrl,
-        imageUrl,
-        allowDownload: allowDownload || false,
-        orderIndex,
-        courseId: params.id,
-      },
-      include: {
-        attachments: true,
-      },
+    // Create the lesson and associated Quiz if type is QUIZ
+    const lesson = await prisma.$transaction(async (tx) => {
+      const newLesson = await tx.lesson.create({
+        data: {
+          title,
+          description,
+          type: type || 'VIDEO',
+          videoUrl,
+          duration: duration ? parseInt(duration) : null,
+          documentUrl,
+          imageUrl,
+          allowDownload: allowDownload || false,
+          orderIndex,
+          courseId: params.id,
+        },
+        include: {
+          attachments: true,
+        },
+      });
+
+      if (type === 'QUIZ') {
+        await tx.quiz.create({
+          data: {
+            lessonId: newLesson.id,
+            firstAttemptPoints: 100,
+            secondAttemptPoints: 75,
+            thirdAttemptPoints: 50,
+            fourthPlusPoints: 25,
+          }
+        });
+      }
+
+      return newLesson;
     });
 
     // Update course total duration

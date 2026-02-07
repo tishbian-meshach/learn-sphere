@@ -48,19 +48,39 @@ export async function PUT(
     } = body;
 
     // Update the lesson
-    const updatedLesson = await prisma.lesson.update({
-      where: { id: params.lessonId },
-      data: {
-        title,
-        description,
-        type,
-        videoUrl,
-        duration: duration ? parseInt(duration.toString()) : null,
-        documentUrl,
-        imageUrl,
-        responsible,
-        allowDownload,
-      },
+    // Use transaction to ensure consistency if type changes to QUIZ
+    const updatedLesson = await prisma.$transaction(async (tx) => {
+      const lesson = await tx.lesson.update({
+        where: { id: params.lessonId },
+        data: {
+          title,
+          description,
+          type,
+          videoUrl,
+          duration: duration ? parseInt(duration.toString()) : null,
+          documentUrl,
+          imageUrl,
+          responsible,
+          allowDownload,
+        },
+      });
+
+      if (type === 'QUIZ') {
+        // Upsert the quiz record to ensure it exists
+        await tx.quiz.upsert({
+          where: { lessonId: params.lessonId },
+          create: {
+            lessonId: params.lessonId,
+            firstAttemptPoints: 100,
+            secondAttemptPoints: 75,
+            thirdAttemptPoints: 50,
+            fourthPlusPoints: 25,
+          },
+          update: {}, // Don't change points if it already exists
+        });
+      }
+
+      return lesson;
     });
 
     // Handle attachments if provided

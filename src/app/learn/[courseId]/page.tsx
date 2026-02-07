@@ -22,6 +22,11 @@ import {
   Link as LinkIcon,
   ExternalLink,
   User,
+  Trophy,
+  HelpCircle,
+  Plus,
+  AlertCircle,
+  Save,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -61,6 +66,17 @@ export default function LessonPlayerPage() {
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
   const [isLoading, setIsLoading] = useState(true);
 
+  // Quiz Player State
+  const [quizData, setQuizData] = useState<any>(null);
+  const [isLoadingQuiz, setIsLoadingQuiz] = useState(false);
+  const [isSubmittingQuiz, setIsSubmittingQuiz] = useState(false);
+  const [isQuestionVerified, setIsQuestionVerified] = useState(false);
+  const [quizPhase, setQuizPhase] = useState<'INTRO' | 'PLAYING' | 'RESULTS'>('INTRO');
+  const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0);
+  const [selectedOptionIndex, setSelectedOptionIndex] = useState<number | null>(null);
+  const [score, setScore] = useState(0);
+  const [quizResults, setQuizResults] = useState<any>(null);
+
   useEffect(() => {
     if (user && courseId) {
       fetchCourseAndProgress();
@@ -98,7 +114,7 @@ export default function LessonPlayerPage() {
         setCourse(courseData);
         setCompletedLessons(new Set((progressData || []).map((p: any) => p.lessonId)));
         
-        if (courseData.lessons && courseData.lessons.length > 0) {
+        if (courseData.lessons && courseData.lessons.length > 0 && !activeLessonId) {
           setActiveLessonId(courseData.lessons[0].id);
         }
 
@@ -118,6 +134,130 @@ export default function LessonPlayerPage() {
 
   const activeLesson = course?.lessons?.find(l => l.id === activeLessonId);
   const activeIndex = course?.lessons?.findIndex(l => l.id === activeLessonId) ?? 0;
+
+  const fetchQuizData = async (lessonId: string) => {
+    setIsLoadingQuiz(true);
+    setQuizPhase('INTRO');
+    setCurrentQuestionIndex(0);
+    setScore(0);
+    setSelectedOptionIndex(null);
+    setQuizResults(null);
+    setIsQuestionVerified(false);
+    
+    try {
+      // Find the quiz linked to this lesson
+      // Quizzes are 1:1 with lessons, but we need the quiz ID
+      // We'll fetch it from an endpoint that finds it by lessonId
+      const res = await fetch(`/api/quizzes/by-lesson/${lessonId}`);
+      if (res.ok) {
+        const data = await res.json();
+        setQuizData(data);
+      } else {
+        setQuizData(null);
+      }
+    } catch (error) {
+      console.error('Failed to load quiz');
+    } finally {
+      setIsLoadingQuiz(false);
+    }
+  };
+
+  useEffect(() => {
+    if (activeLesson?.type === 'QUIZ') {
+      fetchQuizData(activeLesson.id);
+    }
+  }, [activeLessonId, activeLesson?.type]);
+
+  const handleStartQuiz = () => {
+    setQuizPhase('PLAYING');
+    setCurrentQuestionIndex(0);
+    setScore(0);
+    setSelectedOptionIndex(null);
+    setIsQuestionVerified(false);
+  };
+
+  const handleVerify = () => {
+    if (!quizData || selectedOptionIndex === null || isQuestionVerified) return;
+    
+    setIsQuestionVerified(true);
+    const currentQuestion = quizData.questions[currentQuestionIndex];
+    if (currentQuestion.options[selectedOptionIndex].isCorrect) {
+      setScore(prev => prev + 1);
+    }
+  };
+
+  const handleProceed = () => {
+    if (!quizData || !isQuestionVerified) return;
+
+    if (currentQuestionIndex < quizData.questions.length - 1) {
+      setCurrentQuestionIndex(prev => prev + 1);
+      setSelectedOptionIndex(null);
+      setIsQuestionVerified(false);
+    } else {
+      // Finalize Quiz
+      handleSubmitQuiz();
+    }
+  };
+
+  const handleSubmitQuiz = async () => {
+    if (!quizData || !user) return;
+    setIsSubmittingQuiz(true);
+
+    try {
+      // Calculate final score including the last question
+      const currentQuestion = quizData.questions[currentQuestionIndex];
+      const finalScore = score + (currentQuestion.options[selectedOptionIndex!].isCorrect ? 1 : 0);
+
+      const res = await fetch(`/api/quizzes/${quizData.id}/attempts`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          userId: user.id,
+          score: finalScore,
+          // We can add detailed answers here if needed later
+        })
+      });
+
+      if (res.ok) {
+        const results = await res.json();
+        const percentScore = finalScore / quizData.questions.length;
+        const isPassed = percentScore >= 0.8;
+        
+        setQuizResults({ ...results, isPassed });
+        setQuizPhase('RESULTS');
+        
+        if (isPassed) {
+          // Mark lesson as completed in local state
+          setCompletedLessons(prev => {
+            const next = new Set(Array.from(prev));
+            next.add(activeLessonId!);
+            return next;
+          });
+          
+          // Sync with backend
+          fetch('/api/progress', {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              userId: user.id,
+              courseId,
+              lessonId: activeLessonId,
+              isCompleted: true
+            })
+          }).catch(err => console.error('Failed to sync progress:', err));
+
+          toast.success(`Assessment Certified! Earned ${results.pointsEarned} points.`);
+        } else {
+          toast.error(`Certification Failed. Required 80%, achieved ${(percentScore * 100).toFixed(0)}%.`);
+        }
+      }
+    } catch (error) {
+      toast.error('Failed to submit assessment');
+    } finally {
+      setIsSubmittingQuiz(false);
+    }
+  };
+
   const progressPercent = course?.lessons?.length 
     ? (completedLessons.size / course.lessons.length) * 100 
     : 0;
@@ -264,6 +404,194 @@ export default function LessonPlayerPage() {
                         <div className="flex flex-col items-center gap-4">
                            <Video className="w-12 h-12 text-surface-700" />
                            <p className="text-surface-500 text-sm">No video source configured.</p>
+                        </div>
+                      )}
+                    </div>
+                  ) : activeLesson?.type === 'QUIZ' ? (
+                    <div className="min-h-[500px] bg-slate-50 flex flex-col relative border-b border-border">
+                      {isLoadingQuiz ? (
+                        <div className="flex-1 flex flex-col items-center justify-center gap-4">
+                           <Loader2 className="w-10 h-10 animate-spin text-primary" />
+                           <p className="text-sm font-bold text-surface-400 uppercase tracking-widest">Initializing Logic...</p>
+                        </div>
+                      ) : !quizData ? (
+                        <div className="flex-1 flex flex-col items-center justify-center gap-4 text-center p-8">
+                           <HelpCircle className="w-12 h-12 text-surface-200" />
+                           <div className="space-y-1">
+                              <p className="text-sm font-bold text-surface-900">Assessment Logic Pending</p>
+                              <p className="text-xs text-surface-500">The instructor has not yet populated this assessment registry.</p>
+                           </div>
+                        </div>
+                      ) : quizPhase === 'INTRO' ? (
+                        <div className="flex-1 flex flex-col items-center justify-center text-center p-8 max-w-md mx-auto animate-in fade-in slide-in-from-bottom-4">
+                           <div className="w-16 h-16 rounded-full bg-amber-50 border border-amber-100 flex items-center justify-center text-amber-500 mb-6 shadow-sm">
+                              <Trophy className="w-8 h-8" />
+                           </div>
+                           <h3 className="text-2xl font-extrabold text-surface-900 tracking-tight mb-2">Certification Assessment</h3>
+                           <p className="text-sm text-surface-500 mb-8 leading-relaxed">
+                              This evaluation contains <strong>{quizData.questions.length} queries</strong>. 
+                              Successful completion awards reward points based on attempt tiers.
+                           </p>
+                           <div className="flex flex-col w-full gap-3">
+                              <Button className="w-full" size="lg" onClick={handleStartQuiz}>Start Certification</Button>
+                              <p className="text-[10px] font-bold text-surface-400 uppercase tracking-widest flex items-center justify-center gap-2">
+                                 Multiple Attempts Permitted <CheckCircle className="w-3 h-3 text-emerald-500" />
+                              </p>
+                           </div>
+                        </div>
+                      ) : quizPhase === 'PLAYING' ? (
+                        <div className="w-full flex-1 flex flex-col p-8 md:p-12 animate-in fade-in">
+                           <div className="flex items-center justify-between mb-8">
+                              <div className="space-y-1">
+                                 <span className="text-[10px] font-extrabold text-primary uppercase tracking-widest">Question {currentQuestionIndex + 1} of {quizData.questions.length}</span>
+                                 <div className="w-48 h-1.5 bg-slate-200 rounded-full overflow-hidden">
+                                    <div 
+                                      className="h-full bg-primary transition-all duration-500" 
+                                      style={{ width: `${((currentQuestionIndex + 1) / quizData.questions.length) * 100}%` }}
+                                    />
+                                 </div>
+                              </div>
+                              <Badge variant="outline" className="font-mono text-[10px] font-bold">MODE: EVALUATION</Badge>
+                           </div>
+
+                           <div className="flex-1 flex flex-col justify-center max-w-3xl mx-auto w-full">
+                              <h3 className="text-xl md:text-2xl font-extrabold text-surface-900 mb-8 leading-tight">
+                                 {quizData.questions[currentQuestionIndex].text}
+                              </h3>
+
+                              <div className="grid gap-3">
+                                 {quizData.questions[currentQuestionIndex].options.map((option: any, idx: number) => {
+                                    const isSelected = selectedOptionIndex === idx;
+                                    const isCorrect = option.isCorrect;
+                                    
+                                    let buttonState = "normal";
+                                    if (isQuestionVerified) {
+                                       if (isSelected && isCorrect) buttonState = "correct";
+                                       else if (isSelected && !isCorrect) buttonState = "incorrect";
+                                       // We no longer reveal the correct answer if the user didn't pick it
+                                    } else if (isSelected) {
+                                       buttonState = "selected";
+                                    }
+
+                                    return (
+                                       <button
+                                         key={idx}
+                                         onClick={() => !isQuestionVerified && setSelectedOptionIndex(idx)}
+                                         disabled={isQuestionVerified}
+                                         className={cn(
+                                           "w-full p-4 rounded-xl border text-left transition-all duration-200 flex items-center gap-4 group relative overflow-hidden",
+                                           buttonState === "selected" && "bg-primary/5 border-primary shadow-sm ring-1 ring-primary/20",
+                                           buttonState === "correct" && "bg-emerald-50 border-emerald-500 shadow-sm ring-1 ring-emerald-500/20",
+                                           buttonState === "incorrect" && "bg-rose-50 border-rose-500 shadow-sm ring-1 ring-rose-500/20",
+                                           buttonState === "normal" && "bg-white border-border hover:border-primary/40 hover:bg-slate-50",
+                                           isQuestionVerified && buttonState === "normal" && "opacity-60 grayscale-[0.5]"
+                                         )}
+                                       >
+                                          <div className={cn(
+                                             "w-6 h-6 rounded-full border flex items-center justify-center shrink-0 transition-colors",
+                                             buttonState === "selected" && "bg-primary border-primary text-white",
+                                             buttonState === "correct" && "bg-emerald-500 border-emerald-500 text-white",
+                                             buttonState === "incorrect" && "bg-rose-500 border-rose-500 text-white",
+                                             buttonState === "normal" && "bg-white border-border group-hover:border-primary/40"
+                                          )}>
+                                             {buttonState === "selected" && <div className="w-2 h-2 rounded-full bg-white" />}
+                                             {buttonState === "correct" && <CheckCircle className="w-3.5 h-3.5" />}
+                                             {buttonState === "incorrect" && <AlertCircle className="w-3.5 h-3.5" />}
+                                          </div>
+                                          <span className={cn(
+                                             "text-sm font-semibold transition-colors",
+                                             (buttonState === "selected" || buttonState === "correct" || buttonState === "incorrect") ? "text-surface-900" : "text-surface-600 group-hover:text-surface-900"
+                                          )}>{option.text}</span>
+                                          
+                                          {isQuestionVerified && isCorrect && (
+                                             <div className="absolute right-4 top-1/2 -translate-y-1/2">
+                                                <Badge variant="success" size="sm" className="bg-emerald-100 text-emerald-700 border-emerald-200">VALIDATED</Badge>
+                                             </div>
+                                          )}
+                                       </button>
+                                    );
+                                 })}
+                              </div>
+                           </div>
+
+                            <div className="mt-8 flex justify-end">
+                               {!isQuestionVerified ? (
+                                 <Button 
+                                   size="lg" 
+                                   disabled={selectedOptionIndex === null} 
+                                   onClick={handleVerify}
+                                   rightIcon={<Save className="w-5 h-5" />}
+                                 >
+                                    Verify Answer
+                                 </Button>
+                               ) : (
+                                 <Button 
+                                   size="lg" 
+                                   isLoading={isSubmittingQuiz}
+                                   onClick={handleProceed}
+                                   rightIcon={<ChevronRight className="w-5 h-5" />}
+                                 >
+                                    {currentQuestionIndex < quizData.questions.length - 1 ? 'Next Question' : 'Submit Final Assessment'}
+                                 </Button>
+                               )}
+                            </div>
+                        </div>
+                      ) : (
+                        <div className="flex-1 flex flex-col items-center justify-center text-center p-8 max-w-md mx-auto animate-in zoom-in-95">
+                            <div className="w-20 h-20 rounded-full flex items-center justify-center mb-6 shadow-sm border animate-in zoom-in-50 duration-500">
+                               {quizResults?.isPassed ? (
+                                 <div className="w-full h-full rounded-full bg-emerald-50 border-emerald-100 flex items-center justify-center text-emerald-500">
+                                    <CheckCircle className="w-10 h-10" />
+                                 </div>
+                               ) : (
+                                 <div className="w-full h-full rounded-full bg-rose-50 border-rose-100 flex items-center justify-center text-rose-500">
+                                    <AlertCircle className="w-10 h-10" />
+                                 </div>
+                               )}
+                            </div>
+                            
+                            <h3 className="text-2xl font-extrabold text-surface-900 tracking-tight mb-2">
+                               {quizResults?.isPassed ? 'Certification Finalized!' : 'Evaluation Incomplete'}
+                            </h3>
+                            <p className="text-sm text-surface-500 mb-6">
+                               {quizResults?.isPassed 
+                                 ? 'Evaluation complete. High precision detected in assessment responses.' 
+                                 : 'Minimum passing threshold not achieved. Further study recommended before re-evaluation.'}
+                            </p>
+
+                            <div className="w-full bg-white border border-border rounded-xl p-6 mb-8 grid grid-cols-2 gap-4">
+                               <div className="space-y-1">
+                                  <p className="text-[10px] font-extrabold text-surface-400 uppercase tracking-widest text-left">Precision Score</p>
+                                  <div className="flex items-baseline gap-2">
+                                     <p className="text-2xl font-extrabold text-surface-900">{quizResults?.score}/{quizData.questions.length}</p>
+                                     <span className={cn(
+                                       "text-[10px] font-bold px-1.5 py-0.5 rounded uppercase",
+                                       quizResults?.isPassed ? "bg-emerald-100 text-emerald-700" : "bg-rose-100 text-rose-700"
+                                     )}>
+                                        {((quizResults?.score / quizData.questions.length) * 100).toFixed(0)}%
+                                     </span>
+                                  </div>
+                               </div>
+                               <div className="space-y-1 border-l border-border pl-4">
+                                  <p className="text-[10px] font-extrabold text-amber-500 uppercase tracking-widest text-left">Points Earned</p>
+                                  <p className="text-2xl font-extrabold text-amber-600 text-left">+{quizResults?.isPassed ? (quizResults?.pointsEarned || 0) : 0}</p>
+                                </div>
+                            </div>
+                            
+                            <div className="flex gap-4 w-full">
+                               <Button variant="outline" className="flex-1" onClick={handleStartQuiz}>Refine Phase</Button>
+                               {course && activeIndex < course.lessons.length - 1 && (
+                                 <Button 
+                                   className="flex-1" 
+                                   disabled={!quizResults?.isPassed}
+                                   onClick={() => {
+                                      setActiveLessonId(course.lessons[activeIndex + 1].id);
+                                   }}
+                                 >
+                                    {quizResults?.isPassed ? 'Next Module' : 'Pass Required'}
+                                 </Button>
+                               )}
+                            </div>
                         </div>
                       )}
                     </div>

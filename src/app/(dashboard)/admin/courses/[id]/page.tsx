@@ -25,6 +25,7 @@ import {
   FileEdit,
   Users,
   X,
+  Trophy,
 } from 'lucide-react';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
@@ -40,6 +41,7 @@ import { cn } from '@/lib/utils';
 import { Modal } from '@/components/ui/modal';
 import { uploadFile } from '@/lib/supabase/storage';
 import { compressImage } from '@/lib/image-utils';
+import { QuizBuilder } from '@/components/admin/QuizBuilder';
 import toast from 'react-hot-toast';
 
 interface Lesson {
@@ -77,6 +79,9 @@ export default function CourseEditPage() {
   const [isUploadingLessonAsset, setIsUploadingLessonAsset] = useState(false);
   const [editingLessonId, setEditingLessonId] = useState<string | null>(null);
   const [editorTab, setEditorTab] = useState('lesson-content');
+  const [quizzes, setQuizzes] = useState<any[]>([]);
+  const [isQuizBuilderOpen, setIsQuizBuilderOpen] = useState(false);
+  const [activeQuizId, setActiveQuizId] = useState<string | null>(null);
   const [lessonForm, setLessonForm] = useState({
     title: '',
     type: 'VIDEO' as 'VIDEO' | 'DOCUMENT' | 'IMAGE' | 'QUIZ',
@@ -107,6 +112,22 @@ export default function CourseEditPage() {
       setIsLoading(false);
     }
   };
+
+  const fetchQuizzes = async () => {
+    try {
+      const res = await fetch(`/api/courses/${id}/quizzes`);
+      if (res.ok) {
+        const data = await res.json();
+        setQuizzes(data);
+      }
+    } catch (error) {
+      console.error('Failed to load quizzes');
+    }
+  };
+
+  useEffect(() => {
+    if (activeTab === 'quizzes') fetchQuizzes();
+  }, [activeTab]);
 
   const handleUpdate = async (updates: Partial<Course>) => {
     if (!course) return;
@@ -245,6 +266,62 @@ export default function CourseEditPage() {
     }
   };
 
+  const handleCreateQuiz = async () => {
+    const toastId = toast.loading('Initializing assessment unit...');
+    try {
+      const res = await fetch(`/api/courses/${id}/quizzes`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ 
+          title: 'New Assessment',
+          orderIndex: course?.lessons.length || 0 
+        }),
+      });
+      if (res.ok) {
+        const data = await res.json();
+        toast.success('Assessment unit initialized', { id: toastId });
+        fetchQuizzes();
+        fetchCourse();
+        setActiveQuizId(data.id);
+        setIsQuizBuilderOpen(true);
+      }
+    } catch (error) {
+      toast.error('Initialization failed', { id: toastId });
+    }
+  };
+
+  const handleDeleteQuiz = async (quizId: string) => {
+    if (!confirm('Are you certain you wish to decommission this assessment? This action will expunge all questions and rewards.')) return;
+    
+    try {
+      const res = await fetch(`/api/quizzes/${quizId}`, {
+        method: 'DELETE',
+      });
+      if (res.ok) {
+        toast.success('Assessment decommissioned');
+        fetchQuizzes();
+        fetchCourse();
+      }
+    } catch (error) {
+      toast.error('Decommissioning failed');
+    }
+  };
+
+  const handleOpenQuizBuilderForLesson = async (lessonId: string) => {
+    try {
+      const res = await fetch(`/api/quizzes/by-lesson/${lessonId}`);
+      if (res.ok) {
+        const data = await res.json();
+        setActiveQuizId(data.id);
+        setIsQuizBuilderOpen(true);
+      } else {
+        toast.error('No assessment logic found for this unit');
+      }
+    } catch (error) {
+      toast.error('Failed to initialize builder');
+    }
+  };
+
   const handleDeleteLesson = async (lessonId: string) => {
     if (!confirm('This module and all its metadata will be permanently expunged. Proceed?')) return;
 
@@ -274,6 +351,7 @@ export default function CourseEditPage() {
 
   const tabs = [
     { id: 'content', label: 'Curriculum', icon: <Layout className="w-4 h-4" /> },
+    { id: 'quizzes', label: 'Assessments', icon: <Trophy className="w-4 h-4" /> },
     { id: 'details', label: 'Publication info', icon: <BookOpen className="w-4 h-4" /> },
     { id: 'settings', label: 'Infrastructure', icon: <SettingsIcon className="w-4 h-4" /> },
   ];
@@ -503,6 +581,68 @@ export default function CourseEditPage() {
                       </div>
                    </div>
                 </TabPanel>
+
+                <TabPanel isActive={activeTab === 'quizzes'}>
+                   <div className="space-y-6">
+                      <div className="flex items-center justify-between">
+                         <div className="space-y-1">
+                            <h3 className="text-lg font-extrabold text-surface-900 tracking-tight flex items-center gap-2">
+                               <Trophy className="w-5 h-5 text-amber-500" /> Assessment Registry
+                            </h3>
+                            <p className="text-sm text-surface-500">Configure certification quizzes and gamified rewards for this course.</p>
+                         </div>
+                         <Button size="sm" onClick={handleCreateQuiz} leftIcon={<Plus className="w-4 h-4" />}>
+                            Initialize Assessment
+                         </Button>
+                      </div>
+
+                      {quizzes.length === 0 ? (
+                        <div className="text-center py-16 border-2 border-dashed border-border rounded-lg bg-slate-50">
+                           <HelpCircle className="w-12 h-12 text-surface-200 mx-auto mb-4" />
+                           <h4 className="text-sm font-bold text-surface-900 mb-1">No Assessments Configured</h4>
+                           <p className="text-xs text-surface-500 max-w-xs mx-auto mb-6">Create certification units to validate learner knowledge and award reward points.</p>
+                           <Button variant="secondary" size="sm" onClick={handleCreateQuiz}>Add First Assessment</Button>
+                        </div>
+                      ) : (
+                        <div className="grid gap-4">
+                           {quizzes.map((q) => (
+                             <div key={q.id} className="group p-4 bg-white border border-border rounded-xl hover:border-primary/20 transition-all flex items-center gap-6 shadow-sm">
+                                <div className="w-12 h-12 rounded-lg bg-amber-50 border border-amber-100 flex items-center justify-center text-amber-600 shrink-0">
+                                   <Trophy className="w-6 h-6" />
+                                </div>
+                                <div className="flex-1 min-w-0">
+                                   <h4 className="font-bold text-surface-900 truncate group-hover:text-primary transition-colors">
+                                     {q.lesson?.title || 'Unknown Assessment'}
+                                   </h4>
+                                   <div className="flex items-center gap-3 mt-1">
+                                      <Badge variant="secondary" size="sm" className="bg-slate-50 text-[10px]">#{q.lesson?.orderIndex ?? 0}</Badge>
+                                      <span className="text-[10px] font-bold text-surface-400 uppercase tracking-widest">{q._count?.questions ?? 0} Queries</span>
+                                      <span className="w-1 h-1 rounded-full bg-border" />
+                                      <span className="text-[10px] font-bold text-amber-600 uppercase tracking-widest">{q.firstAttemptPoints} Max Pts</span>
+                                   </div>
+                                </div>
+                                <div className="flex items-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                                   <Button 
+                                     variant="outline" 
+                                     size="sm" 
+                                     onClick={() => {
+                                       setActiveQuizId(q.id);
+                                       setIsQuizBuilderOpen(true);
+                                     }}
+                                     leftIcon={<FileEdit className="w-3.5 h-3.5" />}
+                                   >
+                                      Edit Builder
+                                   </Button>
+                                   <Button variant="ghost" size="icon-sm" className="text-destructive" onClick={() => handleDeleteQuiz(q.id)}>
+                                      <Trash2 className="w-4 h-4" />
+                                   </Button>
+                                </div>
+                             </div>
+                           ))}
+                        </div>
+                      )}
+                   </div>
+                </TabPanel>
              </div>
           </div>
         </div>
@@ -637,6 +777,37 @@ export default function CourseEditPage() {
                     </div>
                   )}
 
+                  {lessonForm.type === 'QUIZ' && (
+                    <div className="p-8 rounded-xl border-2 border-dashed border-amber-200 bg-amber-50/30 flex flex-col items-center text-center gap-4">
+                       <div className="w-12 h-12 rounded-full bg-amber-50 border border-amber-100 flex items-center justify-center text-amber-500 shadow-sm">
+                          <Trophy className="w-6 h-6" />
+                       </div>
+                       <div className="space-y-1">
+                          <p className="text-sm font-bold text-surface-900">Assessment Architecture Registry</p>
+                          <p className="text-xs text-surface-500 max-w-xs leading-relaxed">
+                             Certification units require question configuration and reward tiers. This management is handled via the centralized builder.
+                          </p>
+                       </div>
+                       {editingLessonId ? (
+                         <Button 
+                           size="sm" 
+                           variant="primary" 
+                           className="bg-amber-500 hover:bg-amber-600 border-none px-6"
+                           onClick={() => handleOpenQuizBuilderForLesson(editingLessonId)}
+                         >
+                            Open Quiz Builder
+                         </Button>
+                       ) : (
+                         <div className="flex flex-col items-center gap-2">
+                           <Badge variant="outline" className="text-amber-600 border-amber-200">Pending Assignment</Badge>
+                           <p className="text-[10px] font-bold text-surface-400 uppercase tracking-widest leading-relaxed">
+                              Save this unit first to initialize <br /> the assessment architecture.
+                           </p>
+                         </div>
+                       )}
+                    </div>
+                  )}
+
                   {(lessonForm.type === 'DOCUMENT' || lessonForm.type === 'IMAGE') && (
                     <div className="space-y-4 p-4 rounded bg-slate-50 border border-border">
                        <div className="space-y-2">
@@ -756,6 +927,24 @@ export default function CourseEditPage() {
              </TabPanel>
           </div>
         </div>
+      </Modal>
+
+      {/* Quiz Builder Modal */}
+      <Modal
+        isOpen={isQuizBuilderOpen}
+        onClose={() => setIsQuizBuilderOpen(false)}
+        title="Assessment Intelligence Builder"
+        size="xl"
+      >
+        {activeQuizId && (
+          <QuizBuilder 
+            quizId={activeQuizId} 
+             onClose={() => {
+               setIsQuizBuilderOpen(false);
+               fetchQuizzes();
+             }}
+          />
+        )}
       </Modal>
     </div>
   );
