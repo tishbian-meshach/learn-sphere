@@ -23,6 +23,7 @@ import {
   ExternalLink,
   User,
   Trophy,
+  Award,
   HelpCircle,
   Plus,
   AlertCircle,
@@ -37,6 +38,7 @@ import { Progress } from '@/components/ui/progress';
 import { Textarea } from '@/components/ui/textarea';
 import { CourseReviews } from '@/components/shared/CourseReviews';
 import { CourseCompletionModal } from '@/components/shared/CourseCompletionModal';
+import { Certificate } from '@/components/shared/Certificate';
 import { useAuth } from '@/hooks/use-auth';
 import { cn } from '@/lib/utils';
 import toast from 'react-hot-toast';
@@ -64,7 +66,7 @@ interface Course {
 export default function LessonPlayerPage() {
   const router = useRouter();
   const { courseId } = useParams();
-  const { user } = useAuth();
+  const { user, profile } = useAuth();
   
   const [course, setCourse] = useState<Course | null>(null);
   const [activeLessonId, setActiveLessonId] = useState<string | null>(null);
@@ -89,6 +91,8 @@ export default function LessonPlayerPage() {
   // Achievement State
   const [isCompletionModalOpen, setIsCompletionModalOpen] = useState(false);
   const [hasShownCompletion, setHasShownCompletion] = useState(false);
+  const [isCertificateOpen, setIsCertificateOpen] = useState(false);
+  const [autoPrint, setAutoPrint] = useState(false);
 
   // Time Tracking
   const [sessionTime, setSessionTime] = useState(0);
@@ -867,6 +871,43 @@ export default function LessonPlayerPage() {
                    </button>
                  );
                })}
+               
+               {/* Certificate Section for Completed Course */}
+               {course.lessons.length > 0 && completedLessons.size === course.lessons.length && (
+                 <div className="p-4 border-t border-border bg-slate-50/50">
+                   <div className="space-y-3">
+                     <div className="flex items-center gap-2">
+                        <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center border border-primary/20">
+                           <Award className="w-4 h-4 text-primary" />
+                        </div>
+                        <h4 className="text-[10px] font-black text-surface-900 uppercase tracking-[0.2em]">Course Accredited</h4>
+                     </div>
+                     <p className="text-[11px] text-surface-500 font-medium">
+                       You have successfully mastered this curriculum. Your professional certification is available for archival.
+                     </p>
+                      <div className="flex gap-2">
+                        <Button 
+                          variant="primary" 
+                          size="sm" 
+                          className="flex-1 text-[10px] font-black uppercase tracking-widest"
+                          onClick={() => { setAutoPrint(false); setIsCertificateOpen(true); }}
+                          leftIcon={<Award className="w-3.5 h-3.5" />}
+                        >
+                          View
+                        </Button>
+                        <Button 
+                          variant="outline" 
+                          size="sm" 
+                          className="flex-1 text-[10px] font-black uppercase tracking-widest border-primary text-primary hover:bg-primary/5"
+                          onClick={() => { setAutoPrint(true); setIsCertificateOpen(true); }}
+                          leftIcon={<Download className="w-3.5 h-3.5" />}
+                        >
+                          Download
+                        </Button>
+                      </div>
+                   </div>
+                 </div>
+               )}
             </div>
            ) : (
              <div className="flex-1 overflow-hidden">
@@ -882,7 +923,22 @@ export default function LessonPlayerPage() {
         onClose={() => setIsCompletionModalOpen(false)}
         courseTitle={course?.title || 'Professional Curriculum'}
         pointsEarned={20}
+        userName={profile?.name || 'Authorized Practitioner'}
+        completionDate={new Date().toISOString()}
+        certificateId={`CRT-${courseId?.toString().slice(-6).toUpperCase()}-${user?.id.slice(-6).toUpperCase()}`}
       />
+
+      {/* Manual Certificate Trigger */}
+      {isCertificateOpen && user && (
+        <Certificate 
+          userName={profile?.name || 'Authorized Practitioner'}
+          courseTitle={course?.title || 'Professional Curriculum'}
+          completionDate={new Date().toISOString()}
+          certificateId={`CRT-${courseId?.toString().slice(-6).toUpperCase()}-${user?.id.slice(-6).toUpperCase()}`}
+          onClose={() => setIsCertificateOpen(false)}
+          autoPrint={autoPrint}
+        />
+      )}
     </div>
   );
 }

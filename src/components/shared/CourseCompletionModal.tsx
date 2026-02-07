@@ -1,24 +1,33 @@
 'use client';
 
 import React, { useEffect, useState } from 'react';
-import { Trophy, CheckCircle, ArrowRight, Star, GraduationCap, X } from 'lucide-react';
+import { Trophy, CheckCircle, ArrowRight, Star, GraduationCap,Download, X, Award } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
+import { Certificate } from './Certificate';
 
 interface CourseCompletionModalProps {
   isOpen: boolean;
   onClose: () => void;
   courseTitle: string;
   pointsEarned?: number;
+  userName: string;
+  completionDate: string;
+  certificateId: string;
 }
 
 export function CourseCompletionModal({
   isOpen,
   onClose,
   courseTitle,
-  pointsEarned = 100
+  pointsEarned = 100,
+  userName,
+  completionDate,
+  certificateId
 }: CourseCompletionModalProps) {
   const [showContent, setShowContent] = useState(false);
+  const [isCertificateOpen, setIsCertificateOpen] = useState(false);
+  const [autoPrint, setAutoPrint] = useState(false);
 
   useEffect(() => {
     if (isOpen) {
@@ -104,7 +113,29 @@ export function CourseCompletionModal({
             >
               Continue My Journey
             </Button>
-            <p className="text-[10px] font-bold text-surface-400 uppercase tracking-widest">
+            
+            <div className="flex gap-3">
+              <Button
+                variant="outline"
+                size="lg"
+                className="flex-1 h-14 rounded-2xl text-base font-bold group"
+                onClick={() => { setAutoPrint(false); setIsCertificateOpen(true); }}
+                leftIcon={<Award className="w-5 h-5 text-primary group-hover:scale-110 transition-transform" />}
+              >
+                View
+              </Button>
+              <Button
+                variant="outline"
+                size="lg"
+                className="flex-1 h-14 rounded-2xl text-base font-bold group"
+                onClick={() => { setAutoPrint(true); setIsCertificateOpen(true); }}
+                leftIcon={<Download className="w-5 h-5 text-primary group-hover:scale-110 transition-transform" />}
+              >
+                Download
+              </Button>
+            </div>
+
+            <p className="text-[10px] font-bold text-surface-400 uppercase tracking-widest mt-2">
               Digital certificate issued via LearnSphere Registry
             </p>
           </div>
@@ -112,6 +143,18 @@ export function CourseCompletionModal({
 
         {/* Bottom Shimmer Bar */}
         <div className="h-1.5 w-full bg-gradient-to-r from-transparent via-primary/30 to-transparent animate-shimmer" />
+
+        {/* Certificate Preview Overlay */}
+        {isCertificateOpen && (
+          <Certificate 
+            userName={userName}
+            courseTitle={courseTitle}
+            completionDate={completionDate}
+            certificateId={certificateId}
+            onClose={() => setIsCertificateOpen(false)}
+            autoPrint={autoPrint}
+          />
+        )}
       </div>
 
       <style jsx>{`

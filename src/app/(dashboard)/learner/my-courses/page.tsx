@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { BookOpen, Clock, PlayCircle, ArrowRight, Trophy, Compass, Activity } from 'lucide-react';
+import { BookOpen, Clock, PlayCircle, Download, ArrowRight, Trophy, Compass, Activity, Award } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
@@ -10,6 +10,7 @@ import { CardSkeleton } from '@/components/ui/skeleton';
 import { EmptyState } from '@/components/ui/empty-state';
 import { useAuth } from '@/hooks/use-auth';
 import { formatDuration } from '@/lib/utils';
+import { Certificate } from '@/components/shared/Certificate';
 import toast from 'react-hot-toast';
 
 interface Enrollment {
@@ -29,9 +30,11 @@ interface Enrollment {
 
 export default function MyCoursesPage() {
   const router = useRouter();
-  const { user } = useAuth();
+  const { user, profile } = useAuth();
   const [enrollments, setEnrollments] = useState<Enrollment[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [selectedCertificate, setSelectedCertificate] = useState<{ courseId: string; title: string } | null>(null);
+  const [autoPrint, setAutoPrint] = useState(false);
 
   useEffect(() => {
     if (user) {
@@ -146,21 +149,48 @@ export default function MyCoursesPage() {
                       <Progress value={enrollment.progress} size="sm" />
                    </div>
 
-                   <Button
-                      variant={enrollment.status === 'COMPLETED' ? 'outline' : 'primary'}
-                      className="w-full"
-                      size="sm"
-                      rightIcon={<ArrowRight className="w-4 h-4" />}
-                      onClick={() => router.push(`/learn/${enrollment.course.id}`)}
-                   >
-                      {enrollment.status === 'COMPLETED' ? 'Registry Archive' : 'Resume Session'}
-                   </Button>
+
+                     <div className="flex items-center gap-2">
+                       <Button
+                          variant={enrollment.status === 'COMPLETED' ? 'outline' : 'primary'}
+                          className="flex-1"
+                          size="sm"
+                          rightIcon={enrollment.status !== 'COMPLETED' ? <ArrowRight className="w-4 h-4" /> : undefined}
+                          onClick={() => router.push(`/learn/${enrollment.course.id}`)}
+                       >
+                          {enrollment.status === 'COMPLETED' ? 'Registry Archive' : 'Resume Session'}
+                       </Button>
+
+                       {enrollment.status === 'COMPLETED' && (
+                         <Button
+                           variant="primary"
+                           className="px-3"
+                           size="sm"
+                           onClick={() => setSelectedCertificate({ courseId: enrollment.course.id, title: enrollment.course.title })}
+                           title="View Certificate"
+                         >
+                           <Award className="w-4 h-4" />
+                         </Button>
+                       )}
+                     </div>
                 </div>
               </div>
             ))}
           </div>
         )}
       </div>
+
+      {/* Certificate Overlay */}
+      {selectedCertificate && user && (
+        <Certificate 
+          userName={profile?.name || 'Distinguished Practitioner'}
+          courseTitle={selectedCertificate.title}
+          completionDate={new Date().toISOString()}
+          certificateId={`CRT-${selectedCertificate.courseId.slice(-6).toUpperCase()}-${user.id.slice(-6).toUpperCase()}`}
+          onClose={() => setSelectedCertificate(null)}
+          autoPrint={autoPrint}
+        />
+      )}
     </div>
   );
 }
