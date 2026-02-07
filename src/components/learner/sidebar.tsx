@@ -88,7 +88,7 @@ export function LearnerSidebar({ isCollapsed, setIsCollapsed }: LearnerSidebarPr
         {/* Stats Card (Learner Specific) */}
         {!isCollapsed && (
           <div className="mx-3 my-4 space-y-3">
-             {/* Quiz XP */}
+             {/* 
              <div className="p-3 bg-slate-50 border border-border rounded-md">
                 <div className="flex items-center justify-between">
                    <div className="flex items-center gap-1.5">
@@ -97,7 +97,7 @@ export function LearnerSidebar({ isCollapsed, setIsCollapsed }: LearnerSidebarPr
                    </div>
                    <span className="text-xs font-black text-surface-900">{profile?.totalPoints}</span>
                 </div>
-             </div>
+             </div> */}
 
              {/* Badge Progression */}
              <div className="p-3 bg-primary/[0.03] border border-primary/10 rounded-md">
