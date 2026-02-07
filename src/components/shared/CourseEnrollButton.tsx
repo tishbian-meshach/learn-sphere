@@ -3,7 +3,6 @@
 import { useState } from 'react';
 import { Button } from '@/components/ui';
 import { Loader2, Lock } from 'lucide-react';
-import { getStripe } from '@/lib/stripe';
 
 interface CourseEnrollButtonProps {
   courseId: string;
