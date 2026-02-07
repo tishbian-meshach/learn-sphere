@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import {
   Users,
   BookOpen,
@@ -12,7 +12,6 @@ import {
   Download,
   AlertCircle,
   Loader2,
-  MoreHorizontal,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
@@ -38,12 +37,28 @@ export default function AdminReportsPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState('ALL');
+  const [showColumnFilter, setShowColumnFilter] = useState(false);
+  const [visibleColumns, setVisibleColumns] = useState({
+    sno: true,
+    participantName: true,
+    courseName: true,
+    enrolledDate: false,
+    startDate: false,
+    timeSpent: false,
+    completionPercentage: true,
+    completedDate: false,
+    status: true,
+  });
+  const filterRef = useRef<HTMLDivElement>(null);
 
-  useEffect(() => {
-    fetchReports();
-  }, []);
+  const defaultColumns = ['sno', 'participantName', 'courseName', 'completionPercentage', 'status'];
 
-  const fetchReports = async () => {
+  const toggleColumn = (column: keyof typeof visibleColumns) => {
+    if (defaultColumns.includes(column)) return; // Cannot toggle default columns
+    setVisibleColumns(prev => ({ ...prev, [column]: !prev[column] }));
+  };
+
+  const fetchReports = useCallback(async () => {
     try {
       const res = await fetch('/api/enrollments?admin=true');
       if (res.ok) {
@@ -64,7 +79,28 @@ export default function AdminReportsPage() {
     } finally {
       setIsLoading(false);
     }
-  };
+  }, []);
+
+  useEffect(() => {
+    fetchReports();
+  }, [fetchReports]);
+
+  // Close dropdown when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (filterRef.current && !filterRef.current.contains(event.target as Node)) {
+        setShowColumnFilter(false);
+      }
+    };
+
+    if (showColumnFilter) {
+      document.addEventListener('mousedown', handleClickOutside);
+    }
+
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, [showColumnFilter]);
 
   const filteredEnrollments = data?.enrollments.filter((e) => {
     const matchesSearch = 
@@ -147,6 +183,60 @@ export default function AdminReportsPage() {
                  { value: 'NOT_STARTED', label: 'Not Started' },
                ]}
              />
+             <div className="relative" ref={filterRef}>
+               <Button
+                 variant="outline"
+                 size="sm"
+                 onClick={() => setShowColumnFilter(!showColumnFilter)}
+                 leftIcon={<Filter className="w-4 h-4" />}
+               >
+                 Columns
+               </Button>
+               {showColumnFilter && (
+                 <div className="absolute right-0 top-full mt-2 w-56 bg-white border border-border rounded-lg shadow-lg z-50 p-3">
+                   <div className="space-y-2">
+                     <p className="text-xs font-bold text-surface-500 uppercase tracking-widest mb-3">
+                       Customize Table
+                     </p>
+                     <p className="text-[10px] text-surface-400 mb-3">
+                       Pick which columns to show/hide
+                     </p>
+                     {[
+                       { key: 'sno', label: 'S.No.' },
+                       { key: 'courseName', label: 'Course Name' },
+                       { key: 'participantName', label: 'Participant name' },
+                       { key: 'completionPercentage', label: 'Completion percentage' },
+                       { key: 'status', label: 'Status' },
+                       { key: 'enrolledDate', label: 'Enrolled Date' },
+                       { key: 'startDate', label: 'Start date' },
+                       { key: 'timeSpent', label: 'Time spent' },
+                       { key: 'completedDate', label: 'Completed date' },
+                     ].map((col) => {
+                       const isDefault = defaultColumns.includes(col.key);
+                       return (
+                         <label
+                           key={col.key}
+                           className={cn(
+                             "flex items-center justify-between py-2 px-2 rounded",
+                             !isDefault && "hover:bg-surface-50 cursor-pointer",
+                             isDefault && "opacity-60 cursor-not-allowed"
+                           )}
+                         >
+                           <span className="text-sm text-surface-700">{col.label}</span>
+                           <input
+                             type="checkbox"
+                             checked={visibleColumns[col.key as keyof typeof visibleColumns]}
+                             onChange={() => toggleColumn(col.key as keyof typeof visibleColumns)}
+                             disabled={isDefault}
+                             className="w-4 h-4 text-primary border-surface-300 rounded focus:ring-primary disabled:opacity-50"
+                           />
+                         </label>
+                       );
+                     })}
+                   </div>
+                 </div>
+               )}
+             </div>
           </div>
         </div>
 
@@ -154,50 +244,85 @@ export default function AdminReportsPage() {
           <table className="w-full text-left border-collapse">
              <thead className="bg-surface-50 border-b border-border">
                 <tr>
-                   <th className="px-6 py-3 text-[10px] font-bold text-surface-500 uppercase tracking-widest">Learner Entity</th>
-                   <th className="px-6 py-3 text-[10px] font-bold text-surface-500 uppercase tracking-widest">Target Resource</th>
-                   <th className="px-6 py-3 text-[10px] font-bold text-surface-500 uppercase tracking-widest">Progress Ratio</th>
-                   <th className="px-6 py-3 text-[10px] font-bold text-surface-500 uppercase tracking-widest">Last Activity</th>
-                   <th className="px-6 py-3 text-[10px] font-bold text-surface-500 uppercase tracking-widest">Lifecycle</th>
-                   <th className="px-6 py-3 text-right"></th>
+                   {visibleColumns.sno && <th className="px-4 py-3 text-[10px] font-bold text-surface-500 uppercase tracking-widest">S.No.</th>}
+                   {visibleColumns.participantName && <th className="px-4 py-3 text-[10px] font-bold text-surface-500 uppercase tracking-widest">Participant Name</th>}
+                   {visibleColumns.courseName && <th className="px-4 py-3 text-[10px] font-bold text-surface-500 uppercase tracking-widest">Course Name</th>}
+                   {visibleColumns.enrolledDate && <th className="px-4 py-3 text-[10px] font-bold text-surface-500 uppercase tracking-widest">Enrolled Date</th>}
+                   {visibleColumns.startDate && <th className="px-4 py-3 text-[10px] font-bold text-surface-500 uppercase tracking-widest">Start Date</th>}
+                   {visibleColumns.timeSpent && <th className="px-4 py-3 text-[10px] font-bold text-surface-500 uppercase tracking-widest">Time Spent</th>}
+                   {visibleColumns.completionPercentage && <th className="px-4 py-3 text-[10px] font-bold text-surface-500 uppercase tracking-widest">Completion %</th>}
+                   {visibleColumns.completedDate && <th className="px-4 py-3 text-[10px] font-bold text-surface-500 uppercase tracking-widest">Completed Date</th>}
+                   {visibleColumns.status && <th className="px-4 py-3 text-[10px] font-bold text-surface-500 uppercase tracking-widest">Status</th>}
                 </tr>
              </thead>
              <tbody className="divide-y divide-border">
-                {filteredEnrollments?.map((e) => (
+                {filteredEnrollments?.map((e, index) => (
                   <tr key={e.id} className="hover:bg-slate-50/50 transition-colors">
-                     <td className="px-6 py-4">
-                        <div className="flex items-center gap-3">
-                           <div className="w-8 h-8 rounded-full bg-slate-100 border border-border flex items-center justify-center text-[10px] font-bold uppercase text-surface-600">
-                              {e.user.name?.slice(0, 2)}
-                           </div>
-                           <div className="min-w-0">
-                              <p className="text-sm font-bold text-surface-900 truncate">{e.user.name}</p>
-                              <p className="text-[10px] text-surface-400 truncate">{e.user.email}</p>
-                           </div>
-                        </div>
-                     </td>
-                     <td className="px-6 py-4">
-                        <p className="text-sm font-bold text-surface-900 truncate max-w-[200px]">{e.course.title}</p>
-                     </td>
-                     <td className="px-6 py-4 whitespace-nowrap">
-                        <div className="flex items-center gap-3 w-32">
-                           <Progress value={e.progress} size="sm" className="bg-surface-100" />
-                           <span className="text-xs font-extrabold text-surface-700">{Math.round(e.progress)}%</span>
-                        </div>
-                     </td>
-                     <td className="px-6 py-4">
-                        <p className="text-xs text-surface-500 font-medium">{new Date(e.updatedAt).toLocaleDateString()}</p>
-                     </td>
-                     <td className="px-6 py-4">
-                        <Badge variant={e.progress === 100 ? 'success' : e.progress > 0 ? 'primary' : 'default'} size="sm">
-                           {e.progress === 100 ? 'CERTIFIED' : e.progress > 0 ? 'IN PROGRESS' : 'NOT STARTED'}
-                        </Badge>
-                     </td>
-                     <td className="px-6 py-4 text-right">
-                        <Button variant="ghost" size="icon-sm">
-                           <MoreHorizontal className="w-4 h-4 text-surface-400" />
-                        </Button>
-                     </td>
+                     {visibleColumns.sno && (
+                       <td className="px-4 py-4">
+                          <p className="text-sm font-medium text-surface-700">{index + 1}</p>
+                       </td>
+                     )}
+                     {visibleColumns.participantName && (
+                       <td className="px-4 py-4">
+                          <div className="flex items-center gap-3">
+                             <div className="w-8 h-8 rounded-full bg-slate-100 border border-border flex items-center justify-center text-[10px] font-bold uppercase text-surface-600">
+                                {e.user.name?.slice(0, 2)}
+                             </div>
+                             <div className="min-w-0">
+                                <p className="text-sm font-bold text-surface-900 truncate">{e.user.name}</p>
+                                <p className="text-[10px] text-surface-400 truncate">{e.user.email}</p>
+                             </div>
+                          </div>
+                       </td>
+                     )}
+                     {visibleColumns.courseName && (
+                       <td className="px-4 py-4">
+                          <p className="text-sm font-bold text-surface-900 truncate max-w-[200px]">{e.course.title}</p>
+                       </td>
+                     )}
+                     {visibleColumns.enrolledDate && (
+                       <td className="px-4 py-4 whitespace-nowrap">
+                          <p className="text-xs text-surface-500 font-medium">
+                             {new Date(e.enrolledAt).toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' })}
+                          </p>
+                       </td>
+                     )}
+                     {visibleColumns.startDate && (
+                       <td className="px-4 py-4 whitespace-nowrap">
+                          <p className="text-xs text-surface-500 font-medium">
+                             {e.startedAt ? new Date(e.startedAt).toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' }) : 'Invalid Date'}
+                          </p>
+                       </td>
+                     )}
+                     {visibleColumns.timeSpent && (
+                       <td className="px-4 py-4 whitespace-nowrap">
+                          <p className="text-xs text-surface-700 font-semibold">
+                             {e.timeSpent ? `${Math.floor(e.timeSpent / 60)}:${(e.timeSpent % 60).toString().padStart(2, '0')}` : '0:00'}
+                          </p>
+                       </td>
+                     )}
+                     {visibleColumns.completionPercentage && (
+                       <td className="px-4 py-4 whitespace-nowrap">
+                          <div className="flex items-center gap-2">
+                             <span className="text-xs font-extrabold text-surface-700">{Math.round(e.progress)}%</span>
+                          </div>
+                       </td>
+                     )}
+                     {visibleColumns.completedDate && (
+                       <td className="px-4 py-4 whitespace-nowrap">
+                          <p className="text-xs text-surface-500 font-medium">
+                             {e.completedAt ? new Date(e.completedAt).toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' }) : 'Invalid Date'}
+                          </p>
+                       </td>
+                     )}
+                     {visibleColumns.status && (
+                       <td className="px-4 py-4">
+                          <Badge variant={e.progress === 100 ? 'success' : e.progress > 0 ? 'primary' : 'default'} size="sm">
+                             {e.progress === 100 ? 'CERTIFIED' : e.progress > 0 ? 'IN PROGRESS' : 'NOT STARTED'}
+                          </Badge>
+                       </td>
+                     )}
                   </tr>
                 ))}
              </tbody>
