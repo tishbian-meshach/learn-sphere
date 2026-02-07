@@ -37,6 +37,7 @@ interface Course {
     enrollments: number;
     reviews: number;
   };
+  tags: { id: string; name: string }[];
   averageRating: number;
   userStatus?: {
     enrolled: boolean;
@@ -54,6 +55,8 @@ export default function BrowseCoursesPage() {
   const [selectedLevel, setSelectedLevel] = useState<string>('all');
   const [selectedPrice, setSelectedPrice] = useState<string>('all');
   const [selectedSubject, setSelectedSubject] = useState<string>('all');
+  const [selectedTags, setSelectedTags] = useState<string[]>([]);
+  const [availableTags, setAvailableTags] = useState<string[]>([]);
   const [showFilters, setShowFilters] = useState(false);
 
   useEffect(() => {
@@ -74,6 +77,22 @@ export default function BrowseCoursesPage() {
     }
   };
 
+  const fetchTags = async () => {
+    try {
+      const res = await fetch('/api/tags');
+      if (res.ok) {
+        const data = await res.json();
+        setAvailableTags(data);
+      }
+    } catch (error) {
+      console.error('Failed to fetch tags');
+    }
+  };
+
+  useEffect(() => {
+    fetchTags();
+  }, []);
+
   const filteredCourses = courses.filter((c) => {
     const matchesSearch = c.title.toLowerCase().includes(searchQuery.toLowerCase());
     const matchesLevel = selectedLevel === 'all' || c.level === selectedLevel;
@@ -81,8 +100,11 @@ export default function BrowseCoursesPage() {
       selectedPrice === 'FREE' ? (c.price === 0 || c.price === null) : (c.price !== null && c.price > 0)
     );
     const matchesSubject = selectedSubject === 'all' || c.subject === selectedSubject;
-
-    return matchesSearch && matchesLevel && matchesPrice && matchesSubject;
+    const matchesTags = selectedTags.length === 0 || selectedTags.every(tag => 
+      c.tags.some(t => t.name === tag)
+    );
+    
+    return matchesSearch && matchesLevel && matchesPrice && matchesSubject && matchesTags;
   });
 
   const uniqueSubjects = Array.from(new Set(courses.map(c => c.subject).filter(Boolean))) as string[];
@@ -166,6 +188,7 @@ export default function BrowseCoursesPage() {
                 setSelectedLevel('all');
                 setSelectedPrice('all');
                 setSelectedSubject('all');
+                setSelectedTags([]);
                 setSearchQuery('');
               }}
               className="text-surface-500 hover:text-primary"
@@ -210,6 +233,30 @@ export default function BrowseCoursesPage() {
             />
           </div>
         )}
+
+        {showFilters && availableTags.length > 0 && (
+           <div className="flex flex-wrap gap-2 pt-2 animate-in fade-in duration-500">
+              <p className="text-[10px] font-bold text-surface-400 uppercase tracking-widest self-center mr-2">Filter by Tag:</p>
+              {availableTags.map((tag) => (
+                 <button
+                    key={tag}
+                    onClick={() => {
+                       setSelectedTags(prev => 
+                          prev.includes(tag) ? prev.filter(t => t !== tag) : [...prev, tag]
+                       );
+                    }}
+                    className={cn(
+                       "px-2.5 py-1 rounded-full text-[10px] font-bold transition-all border",
+                       selectedTags.includes(tag) 
+                          ? "bg-primary border-primary text-white shadow-sm scale-105" 
+                          : "bg-white border-border text-surface-500 hover:border-primary/30"
+                    )}
+                 >
+                    {tag}
+                 </button>
+              ))}
+           </div>
+        )}
       </div>
 
       {/* Course Grid */}
@@ -248,6 +295,20 @@ export default function BrowseCoursesPage() {
                   <span>{course.instructor.name || 'Staff Instructor'}</span>
                   <span className="w-1 h-1 rounded-full bg-border" />
                   <span>{course._count?.lessons ?? 0} Modules</span>
+                </div>
+
+                <div className="flex flex-wrap gap-1 mb-4">
+                  {course.tags.slice(0, 3).map((tag) => (
+                    <span 
+                      key={tag.id} 
+                      className="px-1.5 py-0.5 rounded bg-surface-50 border border-border text-[9px] font-bold text-surface-500 group-hover:bg-white transition-colors"
+                    >
+                      {tag.name}
+                    </span>
+                  ))}
+                  {course.tags.length > 3 && (
+                    <span className="text-[9px] font-bold text-surface-400 self-center">+{course.tags.length - 3} more</span>
+                  )}
                 </div>
 
                 <div className="mt-auto space-y-4">

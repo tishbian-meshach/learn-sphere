@@ -47,6 +47,7 @@ interface Course {
     enrollments: number;
     reviews: number;
   };
+  tags: { id: string; name: string }[];
   updatedAt: string;
 }
 
@@ -149,6 +150,7 @@ export default function AdminCoursesPage() {
   const uniqueSubjects = Array.from(new Set(courses.map(c => c.subject).filter(Boolean))) as string[];
 
   const StatusBadge = ({ status }: { status: string }) => {
+    if (!status) return null;
     switch (status) {
       case 'PUBLISHED':
         return <Badge variant="success" size="sm" className="font-bold">Published</Badge>;
@@ -305,6 +307,22 @@ export default function AdminCoursesPage() {
                 </div>
               </div>
               <div className="p-5 flex-1 flex flex-col">
+                {course.tags?.length > 0 && (
+                  <div className="flex flex-wrap gap-1 mb-3">
+                    {course.tags.slice(0, 2).map((tag) => (
+                      <span 
+                        key={tag.id} 
+                        className="px-1.5 py-0.5 rounded bg-surface-50 border border-border text-[9px] font-bold text-surface-500 uppercase tracking-tight"
+                      >
+                        {tag.name}
+                      </span>
+                    ))}
+                    {course.tags?.length > 2 && (
+                      <span className="text-[9px] font-bold text-surface-400 self-center">+{course.tags.length - 2}</span>
+                    )}
+                  </div>
+                )}
+
                 <div className="flex items-center justify-between mb-2">
                   <StatusBadge status={course.status} />
                   <span className="text-[10px] font-bold text-surface-400 uppercase tracking-widest flex items-center gap-1">

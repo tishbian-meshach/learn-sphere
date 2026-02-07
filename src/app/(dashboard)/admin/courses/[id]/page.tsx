@@ -72,6 +72,7 @@ interface Course {
     avatarUrl: string | null;
     email: string;
   };
+  tags: { id: string; name: string }[];
 }
 
 export default function CourseEditPage() {
@@ -89,6 +90,8 @@ export default function CourseEditPage() {
   const [editingLessonId, setEditingLessonId] = useState<string | null>(null);
   const [editorTab, setEditorTab] = useState('lesson-content');
   const [quizzes, setQuizzes] = useState<any[]>([]);
+  const [availableTags, setAvailableTags] = useState<string[]>([]);
+  const [newTag, setNewTag] = useState('');
   const [isQuizBuilderOpen, setIsQuizBuilderOpen] = useState(false);
   const [activeQuizId, setActiveQuizId] = useState<string | null>(null);
   const [lessonForm, setLessonForm] = useState({
@@ -139,8 +142,21 @@ export default function CourseEditPage() {
     }
   };
 
+  const fetchTags = async () => {
+    try {
+      const res = await fetch('/api/tags');
+      if (res.ok) {
+        const data = await res.json();
+        setAvailableTags(data);
+      }
+    } catch (error) {
+      console.error('Failed to load tags');
+    }
+  };
+
   useEffect(() => {
     if (activeTab === 'quizzes') fetchQuizzes();
+    if (activeTab === 'details') fetchTags();
   }, [activeTab]);
 
   const handleUpdate = async (updates: Partial<Course>) => {
@@ -505,10 +521,118 @@ export default function CourseEditPage() {
                            placeholder="0 for free courses"
                          />
                       </div>
-                                             <div className="pt-4 border-t border-border flex justify-end">
-                          <Button onClick={() => handleUpdate({ title: course.title, description: course.description, level: course.level, subject: course.subject, price: course.price })} isLoading={isSaving} leftIcon={<Save className="w-4 h-4" />}>
+                                               <div className="pt-4 border-t border-border flex justify-end">
+                          <Button onClick={() => handleUpdate({ 
+                            title: course.title, 
+                            description: course.description, 
+                            level: course.level, 
+                            subject: course.subject, 
+                            price: course.price,
+                            tags: course.tags.map(t => t.name)
+                          })} isLoading={isSaving} leftIcon={<Save className="w-4 h-4" />}>
                              Save Changes
                           </Button>
+                       </div>
+
+                       <div className="pt-8 border-t border-border">
+                          <div className="flex items-center gap-2 mb-4">
+                             <Plus className="w-4 h-4 text-surface-400" />
+                             <h4 className="text-sm font-bold text-surface-900">Taxonomy & Tags</h4>
+                          </div>
+                          
+                          <div className="space-y-4">
+                             <div className="flex flex-wrap gap-2 min-h-[40px] p-4 rounded-lg border border-border bg-slate-50/50">
+                                {course.tags.length === 0 ? (
+                                   <p className="text-[10px] text-surface-400 font-bold uppercase tracking-widest italic opacity-60">No tags assigned yet...</p>
+                                ) : (
+                                   course.tags.map((tag) => (
+                                      <Badge 
+                                         key={tag.id} 
+                                         variant="secondary" 
+                                         className="bg-white border-primary/20 text-primary flex items-center gap-1.5 px-2.5 py-1 shadow-sm"
+                                      >
+                                         {tag.name}
+                                         <button 
+                                            onClick={() => setCourse(c => c ? { 
+                                               ...c, 
+                                               tags: c.tags.filter(t => t.id !== tag.id) 
+                                            } : null)}
+                                            className="hover:text-destructive transition-colors outline-none"
+                                         >
+                                            <X className="w-3 h-3" />
+                                         </button>
+                                      </Badge>
+                                   ))
+                                )}
+                             </div>
+
+                             <div className="flex gap-2">
+                                <div className="flex-1 relative group">
+                                   <Input 
+                                      placeholder="Add keyword (e.g. Next.js, UI/UX)..." 
+                                      value={newTag}
+                                      onChange={(e) => setNewTag(e.target.value)}
+                                      className="bg-white"
+                                      onKeyDown={(e) => {
+                                         if (e.key === 'Enter' && newTag.trim()) {
+                                            const tagName = newTag.trim();
+                                            if (!course.tags.find(t => t.name.toLowerCase() === tagName.toLowerCase())) {
+                                               setCourse(c => c ? { 
+                                                  ...c, 
+                                                  tags: [...c.tags, { id: Date.now().toString(), name: tagName }] 
+                                               } : null);
+                                               setNewTag('');
+                                            }
+                                         }
+                                      }}
+                                   />
+                                   {newTag.trim() && availableTags.filter(t => t.toLowerCase().includes(newTag.toLowerCase()) && !course.tags.find(ct => ct.name.toLowerCase() === t.toLowerCase())).length > 0 && (
+                                      <div className="absolute top-full left-0 right-0 z-50 mt-1 bg-white border border-border rounded-md shadow-lg max-h-40 overflow-y-auto p-1 animate-in fade-in slide-in-from-top-1 duration-200">
+                                         {availableTags
+                                            .filter(t => t.toLowerCase().includes(newTag.toLowerCase()) && !course.tags.find(ct => ct.name.toLowerCase() === t.toLowerCase()))
+                                            .map(tag => (
+                                               <button
+                                                  key={tag}
+                                                  onClick={() => {
+                                                     setCourse(c => c ? { 
+                                                        ...c, 
+                                                        tags: [...c.tags, { id: Date.now().toString(), name: tag }] 
+                                                     } : null);
+                                                     setNewTag('');
+                                                  }}
+                                                  className="w-full text-left px-3 py-2 text-xs hover:bg-surface-50 rounded transition-colors flex items-center justify-between"
+                                               >
+                                                  {tag}
+                                                  <Plus className="w-3 h-3 text-surface-400" />
+                                               </button>
+                                            ))
+                                         }
+                                      </div>
+                                   )}
+                                </div>
+                                <Button 
+                                   variant="outline" 
+                                   onClick={() => {
+                                      if (newTag.trim()) {
+                                         const tagName = newTag.trim();
+                                         if (!course.tags.find(t => t.name.toLowerCase() === tagName.toLowerCase())) {
+                                            setCourse(c => c ? { 
+                                               ...c, 
+                                               tags: [...c.tags, { id: Date.now().toString(), name: tagName }] 
+                                            } : null);
+                                            setNewTag('');
+                                         }
+                                      }
+                                   }}
+                                   disabled={!newTag.trim()}
+                                >
+                                   Append
+                                </Button>
+                             </div>
+                             <p className="text-[10px] text-surface-400 leading-normal">
+                                Press <kbd className="px-1 border border-border rounded bg-white font-sans">Enter</kbd> to initialize new keyword clusters. These will be used for catalog discovery.
+                             </p>
+                          </div>
                        </div>
 
                        <div className="pt-8 border-t border-border">
