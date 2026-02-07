@@ -77,8 +77,11 @@ export async function middleware(request: NextRequest) {
     }
   }
 
-  // Redirect logged in users away from auth pages
-  if (user && (pathname === '/sign-in' || pathname === '/sign-up')) {
+  // Redirect logged in users away from auth pages (except password reset pages)
+  const authPages = ['/sign-in', '/sign-up'];
+  const isAuthPage = authPages.some((page) => pathname === page);
+  
+  if (user && isAuthPage) {
     // If we have a user and they are on sign-in/sign-up, they should be redirected
     // to their respective dashboards. Since middleware doesn't easily know the role
     // from Prisma, we'll redirect to a common loading/callback page or just let

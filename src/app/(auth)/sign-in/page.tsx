@@ -121,7 +121,7 @@ function SignInPageContent() {
 
             <div className="flex items-center justify-between">
               <Link
-                href="#"
+                href="/forgot-password"
                 className="text-xs font-semibold text-primary hover:text-primary/80 transition-colors"
               >
                 Forgot password?
