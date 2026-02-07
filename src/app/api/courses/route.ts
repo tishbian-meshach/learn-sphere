@@ -10,6 +10,7 @@ export async function GET(request: NextRequest) {
     const { searchParams } = new URL(request.url);
     const search = searchParams.get('search') || '';
     const published = searchParams.get('published');
+    const visibility = searchParams.get('visibility');
     const instructorId = searchParams.get('instructorId');
     const userId = searchParams.get('userId');
 
@@ -23,12 +24,18 @@ export async function GET(request: NextRequest) {
         ? { instructorId }
         : {};
 
+    // Enforce visibility/published logic for Learners or unauthenticated requests
+    const isSpecialRole = currentUser?.role === 'ADMIN' || currentUser?.role === 'INSTRUCTOR';
+    
     const courses = await prisma.course.findMany({
       where: {
         ...(search && {
           title: { contains: search, mode: 'insensitive' },
         }),
-        ...(published !== null && { isPublished: published === 'true' }),
+        // If not a special role, we only show published courses
+        ...(!isSpecialRole ? { isPublished: true } : published !== null && { isPublished: published === 'true' }),
+        // Filter by visibility if provided, or default to EVERYONE for learners if published=true
+        ...(visibility ? { visibility: visibility as any } : (!isSpecialRole && { visibility: 'EVERYONE' })),
         ...instructorFilter,
       },
       include: {

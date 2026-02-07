@@ -58,7 +58,7 @@ interface Course {
   title: string;
   description: string | null;
   imageUrl: string | null;
-  status: 'DRAFT' | 'PUBLISHED' | 'ARCHIVED';
+  isPublished: boolean;
   visibility: 'EVERYONE' | 'SIGNED_IN';
   price: number;
   level: string | null;
@@ -404,8 +404,8 @@ export default function CourseEditPage() {
               <h1 className="text-xl font-extrabold text-surface-900 tracking-tight">
                 {course.title}
               </h1>
-              <Badge variant={course.status === 'PUBLISHED' ? 'success' : 'default'} size="sm">
-                {course.status}
+              <Badge variant={course.isPublished ? 'success' : 'default'} size="sm">
+                {course.isPublished ? 'PUBLISHED' : 'DRAFT'}
               </Badge>
             </div>
             <p className="text-xs text-surface-500 font-mono">{course.id}</p>
@@ -417,13 +417,13 @@ export default function CourseEditPage() {
                Preview <ArrowUpRight className="ml-2 w-3.5 h-3.5" />
             </Link>
           </Button>
-          <Button
+           <Button
             size="sm"
-            variant={course.status === 'PUBLISHED' ? 'outline' : 'primary'}
-            onClick={() => handleUpdate({ status: course.status === 'PUBLISHED' ? 'DRAFT' : 'PUBLISHED' })}
+            variant={course.isPublished ? 'outline' : 'primary'}
+            onClick={() => handleUpdate({ isPublished: !course.isPublished })}
             isLoading={isSaving}
           >
-            {course.status === 'PUBLISHED' ? 'Revert to Draft' : 'Publish Resource'}
+            {course.isPublished ? 'Unpublish Course' : 'Publish Course'}
           </Button>
         </div>
       </div>
@@ -528,7 +528,7 @@ export default function CourseEditPage() {
                             level: course.level, 
                             subject: course.subject, 
                             price: course.price,
-                            tags: course.tags
+                            tags: course.tags.map(t => t.name)
                           })} isLoading={isSaving} leftIcon={<Save className="w-4 h-4" />}>
                              Save Changes
                           </Button>

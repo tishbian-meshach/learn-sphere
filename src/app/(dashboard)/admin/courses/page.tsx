@@ -18,6 +18,7 @@ import {
   ExternalLink,
   ChevronRight,
   Filter,
+  Lock,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -37,7 +38,7 @@ interface Course {
   title: string;
   description: string | null;
   imageUrl: string | null;
-  status: string;
+  isPublished: boolean;
   visibility: string;
   level: string | null;
   price: number | null;
@@ -149,18 +150,11 @@ export default function AdminCoursesPage() {
 
   const uniqueSubjects = Array.from(new Set(courses.map(c => c.subject).filter(Boolean))) as string[];
 
-  const StatusBadge = ({ status }: { status: string }) => {
-    if (!status) return null;
-    switch (status) {
-      case 'PUBLISHED':
-        return <Badge variant="success" size="sm" className="font-bold">Published</Badge>;
-      case 'DRAFT':
-        return <Badge variant="default" size="sm" className="font-bold">Draft</Badge>;
-      case 'ARCHIVED':
-        return <Badge variant="error" size="sm" className="font-bold">Archived</Badge>;
-      default:
-        return <Badge size="sm">{status}</Badge>;
+  const StatusBadge = ({ isPublished }: { isPublished: boolean }) => {
+    if (isPublished) {
+      return <Badge variant="success" size="sm" className="font-bold">Published</Badge>;
     }
+    return <Badge variant="default" size="sm" className="font-bold">Draft</Badge>;
   };
 
   return (
@@ -292,6 +286,9 @@ export default function AdminCoursesPage() {
                 ) : (
                   <BookOpen className="w-12 h-12 text-surface-200" />
                 )}
+                <div className="absolute top-3 left-3">
+                  <StatusBadge isPublished={course.isPublished} />
+                </div>
                 <div className="absolute top-3 right-3 opacity-0 group-hover:opacity-100 transition-opacity">
                   <DropdownMenu trigger={<Button variant="secondary" size="icon-sm" className="bg-white/90 backdrop-blur-sm shadow-sm"><MoreVertical className="w-4 h-4" /></Button>}>
                     <DropdownMenuItem onClick={() => router.push(`/admin/courses/${course.id}`)}>
@@ -307,31 +304,32 @@ export default function AdminCoursesPage() {
                 </div>
               </div>
               <div className="p-5 flex-1 flex flex-col">
-                {course.tags?.length > 0 && (
-                  <div className="flex flex-wrap gap-1 mb-3">
-                    {course.tags.slice(0, 2).map((tag) => (
-                      <span 
-                        key={tag.id} 
-                        className="px-1.5 py-0.5 rounded bg-surface-50 border border-border text-[9px] font-bold text-surface-500 uppercase tracking-tight"
-                      >
-                        {tag.name}
-                      </span>
-                    ))}
-                    {course.tags?.length > 2 && (
-                      <span className="text-[9px] font-bold text-surface-400 self-center">+{course.tags.length - 2}</span>
-                    )}
-                  </div>
-                )}
-
                 <div className="flex items-center justify-between mb-2">
-                  <StatusBadge status={course.status} />
                   <span className="text-[10px] font-bold text-surface-400 uppercase tracking-widest flex items-center gap-1">
                     ID: {course.id.slice(0, 8)}
                   </span>
                 </div>
-                <h3 className="text-base font-bold text-surface-900 line-clamp-1 mb-2 group-hover:text-primary transition-colors">
+                <h3 className="text-base font-bold text-surface-900 line-clamp-1 mb-2 group-hover:text-primary transition-colors flex items-center gap-2">
                   {course.title}
+                  {course.visibility === 'SIGNED_IN' && <Lock className="w-3.5 h-3.5 text-amber-500" />}
                 </h3>
+                
+                {course.tags?.length > 0 && (
+                  <div className="flex flex-wrap gap-1 mb-4">
+                    {course.tags.slice(0, 3).map((tag) => (
+                      <span 
+                        key={tag.id} 
+                        className="px-1.5 py-0.5 rounded-full bg-primary/5 text-primary border border-primary/10 text-[8px] font-extrabold uppercase tracking-tight"
+                      >
+                        {tag.name}
+                      </span>
+                    ))}
+                    {course.tags?.length > 3 && (
+                      <span className="text-[8px] font-bold text-surface-400 self-center">+{course.tags.length - 3}</span>
+                    )}
+                  </div>
+                )}
+
                 <div className="mt-auto pt-4 border-t border-border flex items-center justify-between">
                   <div className="flex items-center gap-4 text-xs text-surface-500 font-medium">
                     <span className="flex items-center gap-1.5"><Users className="w-3.5 h-3.5 opacity-60" /> {course._count?.enrollments ?? 0}</span>
@@ -370,13 +368,16 @@ export default function AdminCoursesPage() {
                         )}
                       </div>
                       <div className="min-w-0">
-                        <p className="text-sm font-bold text-surface-900 truncate group-hover:text-primary transition-colors cursor-pointer" onClick={() => router.push(`/admin/courses/${course.id}`)}>{course.title}</p>
+                        <p className="text-sm font-bold text-surface-900 truncate group-hover:text-primary transition-colors cursor-pointer flex items-center gap-2" onClick={() => router.push(`/admin/courses/${course.id}`)}>
+                          {course.title}
+                          {course.visibility === 'SIGNED_IN' && <Lock className="w-3 h-3 text-amber-500" />}
+                        </p>
                         <p className="text-[10px] text-surface-400 font-mono">{course.id}</p>
                       </div>
                     </div>
                   </td>
-                  <td className="px-6 py-4">
-                    <StatusBadge status={course.status} />
+                   <td className="px-6 py-4">
+                    <StatusBadge isPublished={course.isPublished} />
                   </td>
                   <td className="px-6 py-4">
                     <div className="flex items-center gap-4 text-xs text-surface-600 font-medium">

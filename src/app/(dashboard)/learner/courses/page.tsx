@@ -65,7 +65,7 @@ export default function BrowseCoursesPage() {
 
   const fetchCourses = async () => {
     try {
-      const res = await fetch(`/api/courses?status=PUBLISHED&userId=${user?.id}`);
+      const res = await fetch(`/api/courses?published=true&visibility=EVERYONE&userId=${user?.id}`);
       if (res.ok) {
         const data = await res.json();
         setCourses(data);
@@ -281,9 +281,11 @@ export default function BrowseCoursesPage() {
                     <BookOpen className="w-10 h-10 text-surface-200" />
                   </div>
                 )}
-                <div className="absolute top-2 left-2">
-                  <Badge variant="secondary" size="sm" className="bg-white/90 shadow-sm backdrop-blur-sm px-1.5">{course.level}</Badge>
-                </div>
+                {course.level && (
+                  <div className="absolute top-2 left-2">
+                    <Badge variant="secondary" size="sm" className="bg-white/90 shadow-sm backdrop-blur-sm px-1.5">{course.level}</Badge>
+                  </div>
+                )}
               </div>
 
               <div className="flex-1 flex flex-col">
