@@ -56,6 +56,7 @@ interface Attendee {
   status: string;
   enrolledAt: string;
   progress: number;
+  timeSpent: number;
   user: {
     id: string;
     name: string | null;
@@ -63,6 +64,11 @@ interface Attendee {
     avatarUrl: string | null;
     badgeLevel: string;
     totalPoints: number;
+    lessonProgress: {
+      timeSpent: number;
+      isCompleted: boolean;
+      lesson: { title: string };
+    }[];
   };
 }
 
@@ -118,6 +124,19 @@ export default function CourseEditPage() {
   const [isAttendeesLoading, setIsAttendeesLoading] = useState(false);
   const [isInviteModalOpen, setIsInviteModalOpen] = useState(false);
   const [inviteEmail, setInviteEmail] = useState('');
+  const [selectedAttendee, setSelectedAttendee] = useState<Attendee | null>(null);
+  const [isTimeBreakdownOpen, setIsTimeBreakdownOpen] = useState(false);
+
+  const formatTime = (seconds: number) => {
+    if (!seconds) return '0s';
+    const h = Math.floor(seconds / 3600);
+    const m = Math.floor((seconds % 3600) / 60);
+    const s = seconds % 60;
+    
+    if (h > 0) return `${h}h ${m}m`;
+    if (m > 0) return `${m}m ${s}s`;
+    return `${s}s`;
+  };
   const [lessonForm, setLessonForm] = useState({
     title: '',
     type: 'VIDEO' as 'VIDEO' | 'DOCUMENT' | 'IMAGE' | 'QUIZ',
@@ -906,6 +925,7 @@ export default function CourseEditPage() {
                             <th className="px-4 py-3 text-[10px] font-bold text-surface-500 uppercase tracking-widest">Learner</th>
                             <th className="px-4 py-3 text-[10px] font-bold text-surface-500 uppercase tracking-widest">Status</th>
                             <th className="px-4 py-3 text-[10px] font-bold text-surface-500 uppercase tracking-widest">Progress</th>
+                            <th className="px-4 py-3 text-[10px] font-bold text-surface-500 uppercase tracking-widest">Time Mapping</th>
                             <th className="px-4 py-3 text-[10px] font-bold text-surface-500 uppercase tracking-widest">Enrolled</th>
                             <th className="px-4 py-3 text-right"></th>
                           </tr>
@@ -935,13 +955,29 @@ export default function CourseEditPage() {
                                   <span className="text-[10px] font-bold text-surface-600">{Math.round(attendee.progress)}%</span>
                                 </div>
                               </td>
+                              <td className="px-4 py-3">
+                                <div className="flex flex-col gap-1">
+                                  <span className="text-xs font-bold text-surface-900">{formatTime(attendee.timeSpent)}</span>
+                                  <button 
+                                    onClick={() => {
+                                      setSelectedAttendee(attendee);
+                                      setIsTimeBreakdownOpen(true);
+                                    }}
+                                    className="text-[10px] font-extrabold text-primary uppercase tracking-widest text-left hover:underline"
+                                  >
+                                    View Breakdown
+                                  </button>
+                                </div>
+                              </td>
                               <td className="px-4 py-3 text-xs text-surface-500 font-medium whitespace-nowrap">
                                 {new Date(attendee.enrolledAt).toLocaleDateString()}
                               </td>
                               <td className="px-4 py-3 text-right">
-                                <Button variant="ghost" size="icon-sm" onClick={() => handleContactAttendee(attendee)}>
-                                  <Mail className="w-4 h-4" />
-                                </Button>
+                                <div className="flex items-center justify-end gap-1">
+                                  <Button variant="ghost" size="icon-sm" onClick={() => handleContactAttendee(attendee)}>
+                                    <Mail className="w-4 h-4" />
+                                  </Button>
+                                </div>
                               </td>
                             </tr>
                           ))}
@@ -1274,6 +1310,68 @@ export default function CourseEditPage() {
             }}>
               <Copy className="w-3 h-3" />
             </Button>
+          </div>
+        </div>
+      </Modal>
+
+      {/* Time Breakdown Modal */}
+      <Modal
+        isOpen={isTimeBreakdownOpen}
+        onClose={() => setIsTimeBreakdownOpen(false)}
+        title="Learning Duration Breakdown"
+        description={`Detailed time allocation for ${selectedAttendee?.user.name || 'Learner'}`}
+        size="lg"
+      >
+        <div className="space-y-4">
+          <div className="p-4 rounded-xl bg-slate-50 border border-border flex items-center justify-between">
+            <div>
+              <p className="text-[10px] font-bold text-surface-400 uppercase tracking-widest">Total Course Runtime</p>
+              <p className="text-xl font-black text-surface-900">{formatTime(selectedAttendee?.timeSpent || 0)}</p>
+            </div>
+            <div className="text-right">
+              <p className="text-[10px] font-bold text-surface-400 uppercase tracking-widest">Curriculum Progress</p>
+              <p className="text-xl font-black text-primary">{Math.round(selectedAttendee?.progress || 0)}%</p>
+            </div>
+          </div>
+
+          <div className="space-y-2">
+            <p className="text-[10px] font-extrabold text-surface-400 uppercase tracking-widest">Unit Wise Breakdown</p>
+            <div className="border border-border rounded-lg overflow-hidden">
+              <div className="max-h-[300px] overflow-y-auto">
+                <table className="w-full text-left text-xs">
+                  <thead className="bg-white border-b border-border sticky top-0">
+                    <tr>
+                      <th className="px-4 py-2 font-bold text-surface-500">Module Unit</th>
+                      <th className="px-4 py-2 font-bold text-surface-500 text-right">Time Spent</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-border bg-white">
+                    {selectedAttendee?.user.lessonProgress.length === 0 ? (
+                      <tr>
+                        <td colSpan={2} className="px-4 py-8 text-center text-surface-400 italic">No activity recorded yet</td>
+                      </tr>
+                    ) : (
+                      selectedAttendee?.user.lessonProgress.map((lp, i) => (
+                        <tr key={i} className="hover:bg-slate-50/50">
+                          <td className="px-4 py-2">
+                            <div className="flex items-center gap-2">
+                              <div className={cn(
+                                "w-1.5 h-1.5 rounded-full",
+                                lp.isCompleted ? "bg-green-500" : "bg-amber-400"
+                              )} />
+                              <span className="font-medium text-surface-900">{lp.lesson.title}</span>
+                            </div>
+                          </td>
+                          <td className="px-4 py-2 text-right font-bold text-surface-700">
+                            {formatTime(lp.timeSpent)}
+                          </td>
+                        </tr>
+                      ))
+                    )}
+                  </tbody>
+                </table>
+              </div>
+            </div>
           </div>
         </div>
       </Modal>

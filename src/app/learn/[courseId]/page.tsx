@@ -85,6 +85,20 @@ export default function LessonPlayerPage() {
   // Reviews State
   const [activeTab, setActiveTab] = useState<'syllabus' | 'reviews'>('syllabus');
 
+  // Time Tracking
+  const [sessionTime, setSessionTime] = useState(0);
+
+  useEffect(() => {
+    const timer = setInterval(() => {
+      setSessionTime(prev => prev + 1);
+    }, 1000);
+    return () => clearInterval(timer);
+  }, []);
+
+  useEffect(() => {
+    setSessionTime(0);
+  }, [activeLessonId]);
+
   useEffect(() => {
     if (user && courseId) {
       fetchCourseAndProgress();
@@ -199,6 +213,7 @@ export default function LessonPlayerPage() {
     
     setIsQuestionVerified(true);
     const currentQuestion = quizData.questions[currentQuestionIndex];
+    if (!currentQuestion) return;
     if (currentQuestion.options[selectedOptionIndex].isCorrect) {
       setScore(prev => prev + 1);
     }
@@ -224,6 +239,7 @@ export default function LessonPlayerPage() {
     try {
       // Calculate final score including the last question
       const currentQuestion = quizData.questions[currentQuestionIndex];
+      if (!currentQuestion) return;
       const finalScore = score + (currentQuestion.options[selectedOptionIndex!].isCorrect ? 1 : 0);
 
       const res = await fetch(`/api/quizzes/${quizData.id}/attempts`, {
@@ -260,9 +276,10 @@ export default function LessonPlayerPage() {
               userId: user.id,
               courseId,
               lessonId: activeLessonId,
-              isCompleted: true
+              isCompleted: true,
+              timeSpent: sessionTime
             })
-          }).catch(err => console.error('Failed to sync progress:', err));
+          }).then(() => setSessionTime(0)).catch(err => console.error('Failed to sync progress:', err));
 
           toast.success(`Assessment Certified! Earned ${results.pointsEarned} points.`);
         } else {
@@ -291,7 +308,8 @@ export default function LessonPlayerPage() {
           userId: user?.id,
           courseId,
           lessonId: activeLessonId,
-          isCompleted: true
+          isCompleted: true,
+          timeSpent: sessionTime
         })
       });
 
@@ -301,6 +319,7 @@ export default function LessonPlayerPage() {
           next.add(activeLessonId);
           return next;
         });
+        setSessionTime(0);
         toast.success('Module unit certified');
         
         // Auto-navigate to next
@@ -432,7 +451,7 @@ export default function LessonPlayerPage() {
                            <Loader2 className="w-10 h-10 animate-spin text-primary" />
                            <p className="text-sm font-bold text-surface-400 uppercase tracking-widest">Initializing Logic...</p>
                         </div>
-                      ) : !quizData ? (
+                      ) : (!quizData || !quizData.questions || quizData.questions.length === 0) ? (
                         <div className="flex-1 flex flex-col items-center justify-center gap-4 text-center p-8">
                            <HelpCircle className="w-12 h-12 text-surface-200" />
                            <div className="space-y-1">
@@ -461,11 +480,11 @@ export default function LessonPlayerPage() {
                         <div className="w-full flex-1 flex flex-col p-8 md:p-12 animate-in fade-in">
                            <div className="flex items-center justify-between mb-8">
                               <div className="space-y-1">
-                                 <span className="text-[10px] font-extrabold text-primary uppercase tracking-widest">Question {currentQuestionIndex + 1} of {quizData.questions.length}</span>
+                                 <span className="text-[10px] font-extrabold text-primary uppercase tracking-widest">Question {currentQuestionIndex + 1} of {quizData.questions?.length || 0}</span>
                                  <div className="w-48 h-1.5 bg-slate-200 rounded-full overflow-hidden">
                                     <div 
                                       className="h-full bg-primary transition-all duration-500" 
-                                      style={{ width: `${((currentQuestionIndex + 1) / quizData.questions.length) * 100}%` }}
+                                      style={{ width: `${((currentQuestionIndex + 1) / Math.max(1, quizData.questions?.length || 1)) * 100}%` }}
                                     />
                                  </div>
                               </div>
@@ -474,11 +493,11 @@ export default function LessonPlayerPage() {
 
                            <div className="flex-1 flex flex-col justify-center max-w-3xl mx-auto w-full">
                               <h3 className="text-xl md:text-2xl font-extrabold text-surface-900 mb-8 leading-tight">
-                                 {quizData.questions[currentQuestionIndex].text}
+                                 {quizData.questions[currentQuestionIndex]?.text}
                               </h3>
 
                               <div className="grid gap-3">
-                                 {quizData.questions[currentQuestionIndex].options.map((option: any, idx: number) => {
+                                 {quizData.questions[currentQuestionIndex]?.options.map((option: any, idx: number) => {
                                     const isSelected = selectedOptionIndex === idx;
                                     const isCorrect = option.isCorrect;
                                     

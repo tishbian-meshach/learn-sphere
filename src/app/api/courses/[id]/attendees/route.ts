@@ -36,6 +36,22 @@ export async function GET(
             avatarUrl: true,
             badgeLevel: true,
             totalPoints: true,
+            lessonProgress: {
+              where: {
+                lesson: {
+                  courseId: params.id
+                }
+              },
+              select: {
+                timeSpent: true,
+                isCompleted: true,
+                lesson: {
+                  select: {
+                    title: true
+                  }
+                }
+              }
+            }
           }
         }
       },
