@@ -701,21 +701,23 @@ export default function LessonPlayerPage() {
                           title="Technical Resource Preview"
                         />
                       </div>
-                      <div className="p-4 rounded-md border border-primary/20 bg-primary/5 flex items-center justify-between">
-                        <div className="flex items-center gap-3">
-                          <FileText className="w-5 h-5 text-primary" />
-                          <div className="text-sm">
-                            <p className="font-bold text-surface-900">Technical Resource Available</p>
-                            <p className="text-xs text-surface-500">Access the full documentation for this module.</p>
+                      {activeLesson.allowDownload && (
+                        <div className="p-4 rounded-md border border-primary/20 bg-primary/5 flex items-center justify-between">
+                          <div className="flex items-center gap-3">
+                            <FileText className="w-5 h-5 text-primary" />
+                            <div className="text-sm">
+                              <p className="font-bold text-surface-900">Technical Resource Available</p>
+                              <p className="text-xs text-surface-500">Access the full documentation for this module.</p>
+                            </div>
                           </div>
+                          <Button asChild size="sm">
+                            <a href={activeLesson.documentUrl} target="_blank" download={true}>
+                              <Download className="w-4 h-4 mr-2" />
+                              Download Guide
+                            </a>
+                          </Button>
                         </div>
-                        <Button asChild size="sm">
-                          <a href={activeLesson.documentUrl} target="_blank" download={activeLesson.allowDownload}>
-                            {activeLesson.allowDownload ? <Download className="w-4 h-4 mr-2" /> : <ExternalLink className="w-4 h-4 mr-2" />}
-                            Access Guide
-                          </a>
-                        </Button>
-                      </div>
+                      )}
                     </div>
                   )}
 
@@ -728,6 +730,23 @@ export default function LessonPlayerPage() {
                       <div className="rounded-md border border-border bg-white overflow-hidden shadow-sm">
                         <img src={activeLesson.imageUrl} className="w-full h-auto" alt={activeLesson.title} />
                       </div>
+                      {activeLesson.allowDownload && (
+                        <div className="p-4 rounded-md border border-primary/20 bg-primary/5 flex items-center justify-between">
+                          <div className="flex items-center gap-3">
+                            <ImageIcon className="w-5 h-5 text-primary" />
+                            <div className="text-sm">
+                              <p className="font-bold text-surface-900">Visual Asset Available</p>
+                              <p className="text-xs text-surface-500">Download the high-resolution image for this module.</p>
+                            </div>
+                          </div>
+                          <Button asChild size="sm">
+                            <a href={activeLesson.imageUrl} target="_blank" download={true}>
+                              <Download className="w-4 h-4 mr-2" />
+                              Download Image
+                            </a>
+                          </Button>
+                        </div>
+                      )}
                     </div>
                   )}
                 </div>
