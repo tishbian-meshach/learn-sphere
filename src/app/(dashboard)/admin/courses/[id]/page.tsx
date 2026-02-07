@@ -32,6 +32,7 @@ import {
   Mail,
   Copy,
   ExternalLink as ExternalLinkIcon,
+  AlertTriangle,
 } from 'lucide-react';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
@@ -45,6 +46,7 @@ import { DropdownMenu, DropdownMenuItem } from '@/components/ui/dropdown-menu';
 import { useAuth } from '@/hooks/use-auth';
 import { cn } from '@/lib/utils';
 import { Modal } from '@/components/ui/modal';
+import { ConfirmDialog } from '@/components/ui/confirm-dialog';
 import { uploadFile } from '@/lib/supabase/storage';
 import { compressImage } from '@/lib/image-utils';
 import { QuizBuilder } from '@/components/admin/QuizBuilder';
@@ -127,6 +129,13 @@ export default function CourseEditPage() {
   const [inviteEmail, setInviteEmail] = useState('');
   const [selectedAttendee, setSelectedAttendee] = useState<Attendee | null>(null);
   const [isTimeBreakdownOpen, setIsTimeBreakdownOpen] = useState(false);
+
+  // Delete State
+  const [isDeleteLessonDialogOpen, setIsDeleteLessonDialogOpen] = useState(false);
+  const [lessonToDeleteId, setLessonToDeleteId] = useState<string | null>(null);
+  const [isDeleteQuizDialogOpen, setIsDeleteQuizDialogOpen] = useState(false);
+  const [quizToDeleteId, setQuizToDeleteId] = useState<string | null>(null);
+  const [isDeleting, setIsDeleting] = useState(false);
 
   const formatTime = (seconds: number) => {
     if (!seconds) return '0s';
@@ -384,20 +393,31 @@ export default function CourseEditPage() {
     }
   };
 
-  const handleDeleteQuiz = async (quizId: string) => {
-    if (!confirm('Are you certain you wish to decommission this assessment? This action will expunge all questions and rewards.')) return;
+  const handleDeleteQuiz = (quizId: string) => {
+    setQuizToDeleteId(quizId);
+    setIsDeleteQuizDialogOpen(true);
+  };
 
+  const confirmDeleteQuiz = async () => {
+    if (!quizToDeleteId) return;
+    setIsDeleting(true);
+    const toastId = toast.loading('Decommissioning assessment...');
     try {
-      const res = await fetch(`/api/quizzes/${quizId}`, {
+      const res = await fetch(`/api/quizzes/${quizToDeleteId}`, {
         method: 'DELETE',
       });
       if (res.ok) {
-        toast.success('Assessment decommissioned');
+        toast.success('Assessment decommissioned', { id: toastId });
         fetchQuizzes();
         fetchCourse();
+        setIsDeleteQuizDialogOpen(false);
+      } else {
+        toast.error('Decommissioning failed', { id: toastId });
       }
     } catch (error) {
-      toast.error('Decommissioning failed');
+      toast.error('Decommissioning failed', { id: toastId });
+    } finally {
+      setIsDeleting(false);
     }
   };
 
@@ -416,20 +436,31 @@ export default function CourseEditPage() {
     }
   };
 
-  const handleDeleteLesson = async (lessonId: string) => {
-    if (!confirm('This module and all its metadata will be permanently expunged. Proceed?')) return;
+  const handleDeleteLesson = (lessonId: string) => {
+    setLessonToDeleteId(lessonId);
+    setIsDeleteLessonDialogOpen(true);
+  };
 
+  const confirmDeleteLesson = async () => {
+    if (!lessonToDeleteId) return;
+    setIsDeleting(true);
+    const toastId = toast.loading('Expunging module...');
     try {
-      const res = await fetch(`/api/courses/${id}/lessons/${lessonId}`, {
+      const res = await fetch(`/api/courses/${id}/lessons/${lessonToDeleteId}`, {
         method: 'DELETE',
       });
 
       if (res.ok) {
-        toast.success('Module expunged');
+        toast.success('Module expunged', { id: toastId });
         fetchCourse();
+        setIsDeleteLessonDialogOpen(false);
+      } else {
+        toast.error('Expunging failed', { id: toastId });
       }
     } catch (error) {
-      toast.error('Decommissioning failed');
+      toast.error('Decommissioning failed', { id: toastId });
+    } finally {
+      setIsDeleting(false);
     }
   };
 
@@ -1451,6 +1482,26 @@ export default function CourseEditPage() {
           />
         )}
       </Modal>
+      {/* Confirmation Dialogs */}
+      <ConfirmDialog
+        isOpen={isDeleteLessonDialogOpen}
+        onClose={() => setIsDeleteLessonDialogOpen(false)}
+        onConfirm={confirmDeleteLesson}
+        title="Expunge Module"
+        description="This module and all its associated metadata, including video assets and descriptions, will be permanently expunged from the registry. This action is irreversible."
+        confirmText="Confirm"
+        isLoading={isDeleting}
+      />
+
+      <ConfirmDialog
+        isOpen={isDeleteQuizDialogOpen}
+        onClose={() => setIsDeleteQuizDialogOpen(false)}
+        onConfirm={confirmDeleteQuiz}
+        title="Decommission Assessment"
+        description="Are you certain you wish to decommission this assessment? This action will expunge all questions, rewards logic, and historical attempt metadata."
+        confirmText="Confirm Decommission"
+        isLoading={isDeleting}
+      />
     </div>
   );
 }

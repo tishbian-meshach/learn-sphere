@@ -114,7 +114,7 @@ export async function GET(request: NextRequest) {
     }
 
     // Merge courses and remove duplicates
-    const allCourses = [...courses, ...invitationCourses].reduce((acc, course) => {
+    const allCourses = [...courses, ...invitationCourses].reduce((acc: any[], course: any) => {
       if (!acc.find((c: any) => c.id === course.id)) {
         acc.push(course);
       }
@@ -122,9 +122,9 @@ export async function GET(request: NextRequest) {
     }, [] as any[]);
 
     // Transform data to ensure frontend gets the _count structure it expects
-    const coursesWithStats = allCourses.map((course) => {
+    const coursesWithStats = allCourses.map((course: any) => {
       const avgRating = course.reviews.length > 0
-        ? course.reviews.reduce((sum, r) => sum + r.rating, 0) / course.reviews.length
+        ? course.reviews.reduce((sum: number, r: any) => sum + r.rating, 0) / course.reviews.length
         : 0;
 
       return {
@@ -143,7 +143,7 @@ export async function GET(request: NextRequest) {
         } : { enrolled: false },
         
         // Keep lessons relation for totalDuration calculation but it's not needed in the final JSON for list views
-        totalDuration: course.lessons.reduce((sum, l) => sum + (l.duration || 0), 0),
+        totalDuration: course.lessons.reduce((sum: number, l: any) => sum + (l.duration || 0), 0),
         lessons: undefined,
         reviews: undefined,
         enrollments: undefined,

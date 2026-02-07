@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { getCurrentUser } from '@/lib/auth-helpers';
+import { createAdminClient } from '@/lib/supabase/admin';
 
 export const dynamic = 'force-dynamic';
 
@@ -8,7 +9,40 @@ export const dynamic = 'force-dynamic';
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
-    const { id, email, name, role } = body;
+    const { id, email, name, role, provision, password } = body;
+
+    // Administrative Provisioning Logic
+    if (provision) {
+      const currentUser = await getCurrentUser(request);
+      if (currentUser?.role !== 'ADMIN') {
+        return NextResponse.json({ error: 'Unauthorized. Only admins can provision users.' }, { status: 403 });
+      }
+
+      const supabaseAdmin = createAdminClient();
+      
+      // 1. Create User in Supabase Auth
+      const { data: authUser, error: authError } = await supabaseAdmin.auth.admin.createUser({
+        email,
+        password: password || Math.random().toString(36).slice(-10), // Fallback to random if not provided
+        email_confirm: true,
+        user_metadata: { name, role }
+      });
+
+      if (authError) {
+        return NextResponse.json({ error: `Auth Provisioning Failed: ${authError.message}` }, { status: 400 });
+      }
+
+      // 2. Create Profile in Prisma
+      const newUser = await prisma.user.create({
+        data: {
+          id: authUser.user.id,
+          email,
+          name: name || 'Prospective User',
+          role: role || 'LEARNER',
+        }
+      });
+      return NextResponse.json(newUser, { status: 201 });
+    }
 
     // Unified resilient user creation Logic
     try {

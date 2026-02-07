@@ -24,7 +24,6 @@ const navItems = [
   { id: 'courses', label: 'Course Library', icon: BookOpen, href: '/admin/courses', roles: ['ADMIN', 'INSTRUCTOR'] },
   { id: 'reports', label: 'Performance', icon: PieChart, href: '/admin/reports', roles: ['ADMIN', 'INSTRUCTOR'] },
   { id: 'users', label: 'Platform Users', icon: Users, href: '/admin/users', roles: ['ADMIN'] },
-  { id: 'settings', label: 'Organization', icon: Settings, href: '/admin/settings', roles: ['ADMIN'] },
 ];
 
 interface AdminSidebarProps {
