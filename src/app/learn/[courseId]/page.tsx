@@ -126,15 +126,20 @@ export default function LessonPlayerPage() {
           setActiveLessonId(courseData.lessons[0].id);
         }
 
-        // Auto-enroll if not already enrolled (useful for direct navigation/free courses)
-        await fetch('/api/enrollments', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ userId: user?.id, courseId })
-        });
+        // Check if user is already enrolled, if not, enroll them
+        const enrollCheckRes = await fetch(`/api/enrollments?userId=${user?.id}&courseId=${courseId}`);
+        const enrollments = await enrollCheckRes.json();
+        
+        if (!enrollments || enrollments.length === 0) {
+          await fetch('/api/enrollments', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ userId: user?.id, courseId })
+          });
+        }
       }
     } catch (error) {
-      toast.error('Failed to initialize session');
+      console.error('Session initialization warning:', error);
     } finally {
       setIsLoading(false);
     }
@@ -321,8 +326,8 @@ export default function LessonPlayerPage() {
       <div className="h-screen flex flex-col items-center justify-center bg-white gap-4">
         <BookOpen className="w-12 h-12 text-surface-300" />
         <p className="text-surface-500 font-medium">Course not found or failed to load</p>
-        <Button variant="outline" size="sm" onClick={() => router.back()}>
-          Go Back
+        <Button variant="outline" size="sm" onClick={() => router.push('/learner/my-courses')}>
+          Return to My Library
         </Button>
       </div>
     );
@@ -333,7 +338,7 @@ export default function LessonPlayerPage() {
     return (
       <div className="h-screen flex flex-col bg-white overflow-hidden">
         <header className="h-12 border-b border-border bg-white px-4 flex items-center gap-4">
-          <Button variant="ghost" size="icon-sm" onClick={() => router.back()}>
+          <Button variant="ghost" size="icon-sm" onClick={() => router.push('/learner/my-courses')}>
             <ArrowLeft className="w-4 h-4" />
           </Button>
           <span className="text-sm font-bold text-surface-900">{course.title}</span>
@@ -357,7 +362,7 @@ export default function LessonPlayerPage() {
       {/* Immersive Header */}
       <header className="h-12 border-b border-border bg-white px-4 flex items-center justify-between z-20">
         <div className="flex items-center gap-4">
-          <Button variant="ghost" size="icon-sm" onClick={() => router.back()}>
+          <Button variant="ghost" size="icon-sm" onClick={() => router.push('/learner/my-courses')}>
             <ArrowLeft className="w-4 h-4" />
           </Button>
           <div className="flex items-center gap-2">

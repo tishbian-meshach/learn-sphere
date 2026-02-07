@@ -27,6 +27,10 @@ import {
   X,
   Trophy,
   MessageSquare,
+  UserPlus,
+  Mail,
+  Copy,
+  ExternalLink as ExternalLinkIcon,
 } from 'lucide-react';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
@@ -44,7 +48,23 @@ import { uploadFile } from '@/lib/supabase/storage';
 import { compressImage } from '@/lib/image-utils';
 import { QuizBuilder } from '@/components/admin/QuizBuilder';
 import { CourseReviews } from '@/components/shared/CourseReviews';
+import { Avatar } from '@/components/ui/avatar';
 import toast from 'react-hot-toast';
+
+interface Attendee {
+  id: string;
+  status: string;
+  enrolledAt: string;
+  progress: number;
+  user: {
+    id: string;
+    name: string | null;
+    email: string;
+    avatarUrl: string | null;
+    badgeLevel: string;
+    totalPoints: number;
+  };
+}
 
 interface Lesson {
   id: string;
@@ -94,6 +114,10 @@ export default function CourseEditPage() {
   const [newTag, setNewTag] = useState('');
   const [isQuizBuilderOpen, setIsQuizBuilderOpen] = useState(false);
   const [activeQuizId, setActiveQuizId] = useState<string | null>(null);
+  const [attendees, setAttendees] = useState<Attendee[]>([]);
+  const [isAttendeesLoading, setIsAttendeesLoading] = useState(false);
+  const [isInviteModalOpen, setIsInviteModalOpen] = useState(false);
+  const [inviteEmail, setInviteEmail] = useState('');
   const [lessonForm, setLessonForm] = useState({
     title: '',
     type: 'VIDEO' as 'VIDEO' | 'DOCUMENT' | 'IMAGE' | 'QUIZ',
@@ -154,9 +178,25 @@ export default function CourseEditPage() {
     }
   };
 
+  const fetchAttendees = async () => {
+    setIsAttendeesLoading(true);
+    try {
+      const res = await fetch(`/api/courses/${id}/attendees`);
+      if (res.ok) {
+        const data = await res.json();
+        setAttendees(data);
+      }
+    } catch (error) {
+      console.error('Failed to load attendees');
+    } finally {
+      setIsAttendeesLoading(false);
+    }
+  };
+
   useEffect(() => {
     if (activeTab === 'quizzes') fetchQuizzes();
     if (activeTab === 'details') fetchTags();
+    if (activeTab === 'attendees') fetchAttendees();
   }, [activeTab]);
 
   const handleUpdate = async (updates: Partial<Course>) => {
@@ -373,6 +413,44 @@ export default function CourseEditPage() {
     }
   };
 
+  const handleInvite = async () => {
+    if (!inviteEmail) {
+      toast.error('Email address required');
+      return;
+    }
+
+    if (!course?.isPublished) {
+      toast.error('Automated invitations are restricted to published courses only.');
+      return;
+    }
+
+    const toastId = toast.loading('Sending automated invitation...');
+    try {
+      const res = await fetch(`/api/courses/${id}/attendees`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email: inviteEmail }),
+      });
+
+      if (res.ok) {
+        toast.success(`Invitation successfully dispatched to ${inviteEmail}`, { id: toastId });
+        setIsInviteModalOpen(false);
+        setInviteEmail('');
+      } else {
+        const error = await res.json();
+        toast.error(error.error || 'Automated dispatch failure', { id: toastId });
+      }
+    } catch (error) {
+      toast.error('API communication failure', { id: toastId });
+    }
+  };
+
+  const handleContactAttendee = (attendee: Attendee) => {
+    const subject = encodeURIComponent(`Regarding course: ${course.title}`);
+    const body = encodeURIComponent(`Hello ${attendee.user.name || 'Student'},\n\nI am reaching out to you regarding the course "${course.title}".\n\n...`);
+    window.location.href = `mailto:${attendee.user.email}?subject=${subject}&body=${body}`;
+  };
+
   if (isLoading) {
     return (
       <div className="h-96 flex items-center justify-center">
@@ -386,6 +464,7 @@ export default function CourseEditPage() {
   const tabs = [
     { id: 'content', label: 'Curriculum', icon: <Layout className="w-4 h-4" /> },
     { id: 'quizzes', label: 'Assessments', icon: <Trophy className="w-4 h-4" /> },
+    { id: 'attendees', label: 'Attendees', icon: <Users className="w-4 h-4" /> },
     { id: 'reviews', label: 'Learner Reviews', icon: <MessageSquare className="w-4 h-4" /> },
     { id: 'details', label: 'Publication info', icon: <BookOpen className="w-4 h-4" /> },
     { id: 'settings', label: 'Infrastructure', icon: <SettingsIcon className="w-4 h-4" /> },
@@ -678,6 +757,205 @@ export default function CourseEditPage() {
                         </div>
                       </div>
                     </div>
+<<<<<<< Updated upstream
+=======
+                 </TabPanel>
+
+                <TabPanel isActive={activeTab === 'settings'}>
+                   <div className="space-y-8 max-w-2xl">
+                      <div className="space-y-4">
+                         <div className="flex items-center gap-3">
+                            <Globe className="w-4 h-4 text-surface-500" />
+                            <h4 className="text-sm font-bold text-surface-900">Access Governance</h4>
+                         </div>
+                         <div className="space-y-4 p-4 rounded border border-border bg-slate-50/50">
+                            <Toggle
+                              label="Public Visibility"
+                              description="Make this course visible to all users in the public catalog."
+                              checked={course.visibility === 'EVERYONE'}
+                              onChange={(v) => handleUpdate({ visibility: v ? 'EVERYONE' : 'SIGNED_IN' })}
+                            />
+                            <div className="h-[1px] bg-border" />
+                            <div className="flex items-center justify-between gap-4">
+                               <div>
+                                  <p className="text-sm font-bold text-surface-900">Internal UUID</p>
+                                  <p className="text-xs text-surface-500">Reference identifier for API and database operations.</p>
+                                </div>
+                               <code className="text-[10px] bg-white border border-border px-1.5 py-0.5 rounded">{course.id}</code>
+                            </div>
+                         </div>
+                      </div>
+
+                      <div className="p-4 bg-amber-50 rounded border border-amber-200 flex gap-3">
+                         <AlertCircle className="w-5 h-5 text-amber-600 shrink-0" />
+                         <div>
+                            <p className="text-sm font-bold text-amber-900">Platform Restrictions</p>
+                            <p className="text-xs text-amber-700 leading-relaxed">
+                               Deleting or archiving a course will immediately restrict access for all enrolled learners. This action is recorded in the organization log.
+                            </p>
+                         </div>
+                      </div>
+
+                      <div className="pt-4 border-t border-border flex justify-end">
+                         <Button variant="danger" leftIcon={<Trash2 className="w-4 h-4" />}>
+                            Terminate Course Resource
+                         </Button>
+                      </div>
+                   </div>
+                </TabPanel>
+
+                <TabPanel isActive={activeTab === 'quizzes'}>
+                   <div className="space-y-6">
+                      <div className="flex items-center justify-between">
+                         <div className="space-y-1">
+                            <h3 className="text-lg font-extrabold text-surface-900 tracking-tight flex items-center gap-2">
+                               <Trophy className="w-5 h-5 text-amber-500" /> Assessment Registry
+                            </h3>
+                            <p className="text-sm text-surface-500">Configure certification quizzes and gamified rewards for this course.</p>
+                         </div>
+                         <Button size="sm" onClick={handleCreateQuiz} leftIcon={<Plus className="w-4 h-4" />}>
+                            Initialize Assessment
+                         </Button>
+                      </div>
+
+                      {quizzes.length === 0 ? (
+                        <div className="text-center py-16 border-2 border-dashed border-border rounded-lg bg-slate-50">
+                           <HelpCircle className="w-12 h-12 text-surface-200 mx-auto mb-4" />
+                           <h4 className="text-sm font-bold text-surface-900 mb-1">No Assessments Configured</h4>
+                           <p className="text-xs text-surface-500 max-w-xs mx-auto mb-6">Create certification units to validate learner knowledge and award reward points.</p>
+                           <Button variant="secondary" size="sm" onClick={handleCreateQuiz}>Add First Assessment</Button>
+                        </div>
+                      ) : (
+                        <div className="grid gap-4">
+                           {quizzes.map((q) => (
+                             <div key={q.id} className="group p-4 bg-white border border-border rounded-xl hover:border-primary/20 transition-all flex items-center gap-6 shadow-sm">
+                                <div className="w-12 h-12 rounded-lg bg-amber-50 border border-amber-100 flex items-center justify-center text-amber-600 shrink-0">
+                                   <Trophy className="w-6 h-6" />
+                                </div>
+                                <div className="flex-1 min-w-0">
+                                   <h4 className="font-bold text-surface-900 truncate group-hover:text-primary transition-colors">
+                                     {q.lesson?.title || 'Unknown Assessment'}
+                                   </h4>
+                                   <div className="flex items-center gap-3 mt-1">
+                                      <Badge variant="secondary" size="sm" className="bg-slate-50 text-[10px]">#{q.lesson?.orderIndex ?? 0}</Badge>
+                                      <span className="text-[10px] font-bold text-surface-400 uppercase tracking-widest">{q._count?.questions ?? 0} Queries</span>
+                                      <span className="w-1 h-1 rounded-full bg-border" />
+                                      <span className="text-[10px] font-bold text-amber-600 uppercase tracking-widest">{q.firstAttemptPoints} Max Pts</span>
+                                   </div>
+                                </div>
+                                <div className="flex items-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                                   <Button 
+                                     variant="outline" 
+                                     size="sm" 
+                                     onClick={() => {
+                                       setActiveQuizId(q.id);
+                                       setIsQuizBuilderOpen(true);
+                                     }}
+                                     leftIcon={<FileEdit className="w-3.5 h-3.5" />}
+                                   >
+                                      Edit Builder
+                                   </Button>
+                                   <Button variant="ghost" size="icon-sm" className="text-destructive" onClick={() => handleDeleteQuiz(q.id)}>
+                                      <Trash2 className="w-4 h-4" />
+                                   </Button>
+                                </div>
+                             </div>
+                           ))}
+                        </div>
+                      )}
+                   </div>
+                </TabPanel>
+
+                <TabPanel isActive={activeTab === 'attendees'}>
+                  <div className="space-y-6">
+                    <div className="flex items-center justify-between">
+                      <div className="space-y-1">
+                        <h3 className="text-sm font-bold text-surface-900 flex items-center gap-2">
+                          <Users className="w-4 h-4" /> Course Attendees
+                        </h3>
+                        <p className="text-[10px] text-surface-500 font-bold uppercase tracking-widest">
+                          {attendees.length} Active Participants
+                        </p>
+                      </div>
+                      <Button 
+                        size="sm" 
+                        variant="primary" 
+                        leftIcon={<UserPlus className="w-4 h-4" />} 
+                        onClick={() => setIsInviteModalOpen(true)}
+                        disabled={!course.isPublished}
+                        title={!course.isPublished ? "Publish course to enable invitations" : ""}
+                      >
+                        Invite Attendee
+                      </Button>
+                    </div>
+
+                    {isAttendeesLoading ? (
+                      <div className="flex items-center justify-center p-12">
+                        <Loader2 className="w-6 h-6 animate-spin text-primary" />
+                      </div>
+                    ) : attendees.length === 0 ? (
+                      <div className="p-12 text-center rounded border border-dashed border-border bg-slate-50">
+                        <Users className="w-8 h-8 text-surface-200 mx-auto mb-3" />
+                        <p className="text-sm text-surface-500">No attendees have enrolled in this course yet.</p>
+                      </div>
+                    ) : (
+                      <div className="border border-border rounded-lg overflow-hidden">
+                        <table className="w-full text-left">
+                          <thead className="bg-surface-50 border-b border-border">
+                            <tr>
+                              <th className="px-4 py-3 text-[10px] font-bold text-surface-500 uppercase tracking-widest">Learner</th>
+                              <th className="px-4 py-3 text-[10px] font-bold text-surface-500 uppercase tracking-widest">Status</th>
+                              <th className="px-4 py-3 text-[10px] font-bold text-surface-500 uppercase tracking-widest">Progress</th>
+                              <th className="px-4 py-3 text-[10px] font-bold text-surface-500 uppercase tracking-widest">Enrolled</th>
+                              <th className="px-4 py-3 text-right"></th>
+                            </tr>
+                          </thead>
+                          <tbody className="divide-y divide-border">
+                            {attendees.map((attendee) => (
+                              <tr key={attendee.id} className="hover:bg-slate-50/50 transition-colors">
+                                <td className="px-4 py-3">
+                                  <div className="flex items-center gap-3">
+                                    <Avatar src={attendee.user.avatarUrl || ''} name={attendee.user.name || 'U'} className="w-8 h-8" />
+                                    <div className="min-w-0">
+                                      <p className="text-sm font-bold text-surface-900 truncate">{attendee.user.name || 'Anonymous Learner'}</p>
+                                      <p className="text-[10px] text-surface-400 truncate">{attendee.user.email}</p>
+                                    </div>
+                                  </div>
+                                </td>
+                                <td className="px-4 py-3">
+                                  <Badge variant={attendee.status === 'COMPLETED' ? 'success' : 'default'} size="sm" className="font-bold">
+                                    {attendee.status}
+                                  </Badge>
+                                </td>
+                                <td className="px-4 py-3">
+                                  <div className="flex items-center gap-2">
+                                    <div className="flex-1 h-1.5 w-16 bg-surface-100 rounded-full overflow-hidden">
+                                      <div className="h-full bg-primary" style={{ width: `${attendee.progress}%` }} />
+                                    </div>
+                                    <span className="text-[10px] font-bold text-surface-600">{Math.round(attendee.progress)}%</span>
+                                  </div>
+                                </td>
+                                <td className="px-4 py-3 text-xs text-surface-500 font-medium whitespace-nowrap">
+                                  {new Date(attendee.enrolledAt).toLocaleDateString()}
+                                </td>
+                                <td className="px-4 py-3 text-right">
+                                  <Button variant="ghost" size="icon-sm" onClick={() => handleContactAttendee(attendee)}>
+                                    <Mail className="w-4 h-4" />
+                                  </Button>
+                                </td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </div>
+                    )}
+                  </div>
+                </TabPanel>
+
+                <TabPanel isActive={activeTab === 'reviews'}>
+                  <div className="h-[600px] border border-border rounded-xl overflow-hidden">
+                    <CourseReviews courseId={id as string} readOnly />
+>>>>>>> Stashed changes
                   </div>
                 </div>
               </TabPanel>
@@ -1068,6 +1346,47 @@ export default function CourseEditPage() {
                 </div>
               </div>
             </TabPanel>
+          </div>
+        </div>
+      </Modal>
+
+      {/* Invite Modal */}
+      <Modal
+        isOpen={isInviteModalOpen}
+        onClose={() => setIsInviteModalOpen(false)}
+        title="Invite New Attendee"
+        description="This will generate a shareable course link and open your email client to send the invitation."
+        footer={
+          <div className="flex gap-3">
+            <Button variant="outline" onClick={() => setIsInviteModalOpen(false)}>Cancel</Button>
+            <Button onClick={handleInvite} leftIcon={<Mail className="w-4 h-4" />}>Compose Invite</Button>
+          </div>
+        }
+      >
+        <div className="space-y-4">
+          <Input
+            label="Recipient Email"
+            placeholder="learner@example.com"
+            value={inviteEmail}
+            onChange={(e) => setInviteEmail(e.target.value)}
+            autoFocus
+          />
+          {!course.isPublished && (
+            <div className="p-3 bg-amber-50 border border-amber-200 rounded text-[10px] font-bold text-amber-700 flex items-center gap-2">
+              <AlertCircle className="w-3.5 h-3.5" />
+              This course is currently a DRAFT. Learners will not be able to access it even with this link.
+            </div>
+          )}
+          <div className="p-3 bg-slate-50 border border-border rounded text-[10px] font-medium text-surface-500 flex items-center gap-2">
+            <ExternalLinkIcon className="w-3.5 h-3.5 text-primary" />
+            <p className="flex-1 truncate">Link: https://elearnsphere.vercel.app/learn/{id}</p>
+            <Button variant="ghost" size="icon-sm" onClick={() => {
+              const url = `https://elearnsphere.vercel.app/learn/${id}`;
+              navigator.clipboard.writeText(url);
+              toast.success('Link copied to clipboard');
+            }}>
+              <Copy className="w-3 h-3" />
+            </Button>
           </div>
         </div>
       </Modal>
