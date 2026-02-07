@@ -1,0 +1,276 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ==================== ENUMS ====================
+
+enum Role {
+  ADMIN
+  INSTRUCTOR
+  LEARNER
+}
+
+enum LessonType {
+  VIDEO
+  DOCUMENT
+  IMAGE
+  QUIZ
+}
+
+enum Visibility {
+  EVERYONE
+  SIGNED_IN
+}
+
+enum AccessRule {
+  OPEN
+  INVITATION
+  PAYMENT
+}
+
+enum EnrollmentStatus {
+  PENDING
+  ACTIVE
+  COMPLETED
+}
+
+enum BadgeLevel {
+  NEWBIE
+  EXPLORER
+  ACHIEVER
+  SPECIALIST
+  EXPERT
+  MASTER
+}
+
+// ==================== MODELS ====================
+
+model User {
+  id          String     @id @default(cuid())
+  email       String     @unique
+  name        String?
+  avatarUrl   String?
+  role        Role       @default(LEARNER)
+  totalPoints Int        @default(0)
+  badgeLevel  BadgeLevel @default(NEWBIE)
+  createdAt   DateTime   @default(now())
+  updatedAt   DateTime   @updatedAt
+
+  // Relations
+  coursesCreated Course[]         @relation("CourseInstructor")
+  enrollments    Enrollment[]
+  lessonProgress LessonProgress[]
+  quizAttempts   QuizAttempt[]
+  reviews        Review[]
+  pointsLedger   PointsLedger[]
+
+  @@map("users")
+}
+
+model Course {
+  id            String     @id @default(cuid())
+  title         String
+  description   String?    @db.Text
+  imageUrl      String?
+  websiteUrl    String?
+  isPublished   Boolean    @default(false)
+  visibility    Visibility @default(EVERYONE)
+  accessRule    AccessRule @default(OPEN)
+  price         Decimal?   @db.Decimal(10, 2)
+  totalDuration Int        @default(0)
+  viewsCount    Int        @default(0)
+  createdAt     DateTime   @default(now())
+  updatedAt     DateTime   @updatedAt
+
+  // Relations
+  instructorId String
+  instructor   User         @relation("CourseInstructor", fields: [instructorId], references: [id])
+  tags         CourseTag[]
+  lessons      Lesson[]
+  enrollments  Enrollment[]
+  reviews      Review[]
+
+  @@index([instructorId])
+  @@index([isPublished])
+  @@map("courses")
+}
+
+model CourseTag {
+  id       String @id @default(cuid())
+  name     String
+  courseId String
+  course   Course @relation(fields: [courseId], references: [id], onDelete: Cascade)
+
+  @@index([courseId])
+  @@map("course_tags")
+}
+
+model Lesson {
+  id            String     @id @default(cuid())
+  title         String
+  description   String?    @db.Text
+  type          LessonType
+  videoUrl      String?
+  duration      Int?
+  documentUrl   String?
+  imageUrl      String?
+  allowDownload Boolean    @default(false)
+  orderIndex    Int        @default(0)
+  createdAt     DateTime   @default(now())
+  updatedAt     DateTime   @updatedAt
+
+  // Relations
+  courseId    String
+  course      Course             @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  attachments LessonAttachment[]
+  progress    LessonProgress[]
+  quiz        Quiz?
+
+  @@index([courseId])
+  @@index([orderIndex])
+  @@map("lessons")
+}
+
+model LessonAttachment {
+  id         String   @id @default(cuid())
+  name       String
+  url        String
+  isExternal Boolean  @default(false)
+  createdAt  DateTime @default(now())
+
+  lessonId String
+  lesson   Lesson @relation(fields: [lessonId], references: [id], onDelete: Cascade)
+
+  @@index([lessonId])
+  @@map("lesson_attachments")
+}
+
+model Quiz {
+  id       String @id @default(cuid())
+  lessonId String @unique
+  lesson   Lesson @relation(fields: [lessonId], references: [id], onDelete: Cascade)
+
+  firstAttemptPoints  Int @default(100)
+  secondAttemptPoints Int @default(75)
+  thirdAttemptPoints  Int @default(50)
+  fourthPlusPoints    Int @default(25)
+
+  questions Question[]
+  attempts  QuizAttempt[]
+
+  @@map("quizzes")
+}
+
+model Question {
+  id         String @id @default(cuid())
+  text       String @db.Text
+  orderIndex Int    @default(0)
+
+  quizId  String
+  quiz    Quiz     @relation(fields: [quizId], references: [id], onDelete: Cascade)
+  options Option[]
+
+  @@index([quizId])
+  @@map("questions")
+}
+
+model Option {
+  id        String  @id @default(cuid())
+  text      String
+  isCorrect Boolean @default(false)
+
+  questionId String
+  question   Question @relation(fields: [questionId], references: [id], onDelete: Cascade)
+
+  @@index([questionId])
+  @@map("options")
+}
+
+model Enrollment {
+  id          String           @id @default(cuid())
+  status      EnrollmentStatus @default(PENDING)
+  enrolledAt  DateTime         @default(now())
+  startedAt   DateTime?
+  completedAt DateTime?
+  timeSpent   Int              @default(0)
+  progress    Float            @default(0)
+
+  userId   String
+  user     User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  courseId String
+  course   Course @relation(fields: [courseId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, courseId])
+  @@index([userId])
+  @@index([courseId])
+  @@index([status])
+  @@map("enrollments")
+}
+
+model LessonProgress {
+  id          String    @id @default(cuid())
+  isCompleted Boolean   @default(false)
+  completedAt DateTime?
+  timeSpent   Int       @default(0)
+
+  userId   String
+  user     User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  lessonId String
+  lesson   Lesson @relation(fields: [lessonId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, lessonId])
+  @@index([userId])
+  @@index([lessonId])
+  @@map("lesson_progress")
+}
+
+model QuizAttempt {
+  id            String   @id @default(cuid())
+  attemptNumber Int
+  score         Int
+  pointsEarned  Int
+  completedAt   DateTime @default(now())
+
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  quizId String
+  quiz   Quiz   @relation(fields: [quizId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([quizId])
+  @@map("quiz_attempts")
+}
+
+model Review {
+  id        String   @id @default(cuid())
+  rating    Int
+  comment   String?  @db.Text
+  createdAt DateTime @default(now())
+
+  userId   String
+  user     User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  courseId String
+  course   Course @relation(fields: [courseId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, courseId])
+  @@index([courseId])
+  @@map("reviews")
+}
+
+model PointsLedger {
+  id        String   @id @default(cuid())
+  points    Int
+  reason    String
+  createdAt DateTime @default(now())
+
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@map("points_ledger")
+}
