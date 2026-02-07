@@ -2,7 +2,7 @@ import * as React from 'react';
 import { cn } from '@/lib/utils';
 
 interface BadgeProps extends React.HTMLAttributes<HTMLDivElement> {
-  variant?: 'default' | 'primary' | 'success' | 'warning' | 'error' | 'outline' | 'secondary';
+  variant?: 'default' | 'primary' | 'success' | 'warning' | 'error' | 'danger' | 'outline' | 'secondary';
   size?: 'sm' | 'md';
 }
 
@@ -18,6 +18,7 @@ const Badge = ({
     success: 'bg-emerald-50 text-emerald-700 border-emerald-200',
     warning: 'bg-amber-50 text-amber-700 border-amber-200',
     error: 'bg-destructive/10 text-destructive border-destructive/20',
+    danger: 'bg-red-50 text-red-700 border-red-200',
     secondary: 'bg-slate-100 text-slate-700 border-slate-200',
     outline: 'bg-transparent text-surface-600 border-surface-200',
   };

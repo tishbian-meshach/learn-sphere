@@ -59,12 +59,19 @@ interface Course {
   description: string | null;
   imageUrl: string | null;
   status: 'DRAFT' | 'PUBLISHED' | 'ARCHIVED';
-  visibility: 'PUBLIC' | 'PRIVATE' | 'UNLISTED';
+  visibility: 'EVERYONE' | 'SIGNED_IN';
   price: number;
   level: string | null;
   subject: string | null;
   lessons: Lesson[];
   updatedAt: string;
+  enrollmentsCount?: number;
+  instructor?: {
+    id: string;
+    name: string | null;
+    avatarUrl: string | null;
+    email: string;
+  };
 }
 
 export default function CourseEditPage() {
@@ -562,8 +569,8 @@ export default function CourseEditPage() {
                             <Toggle
                               label="Public Visibility"
                               description="Make this course visible to all users in the public catalog."
-                              checked={course.visibility === 'PUBLIC'}
-                              onChange={(v) => handleUpdate({ visibility: v ? 'PUBLIC' : 'PRIVATE' })}
+                              checked={course.visibility === 'EVERYONE'}
+                              onChange={(v) => handleUpdate({ visibility: v ? 'EVERYONE' : 'SIGNED_IN' })}
                             />
                             <div className="h-[1px] bg-border" />
                             <div className="flex items-center justify-between gap-4">
@@ -676,12 +683,12 @@ export default function CourseEditPage() {
                </div>
                <div>
                   <p className="text-[10px] font-bold text-surface-400 uppercase tracking-widest leading-none mb-1.5">Owner / Provider</p>
-                  <p className="text-xs font-medium text-surface-700">Self (Administrator)</p>
+                  <p className="text-xs font-medium text-surface-700">{course.instructor?.name || 'Unknown'} - Instructor</p>
                </div>
                <div className="pt-4 border-t border-border">
                   <div className="flex items-center gap-2 text-primary">
                      <Users className="w-3.5 h-3.5" />
-                     <span className="text-xs font-bold">14 Active Enrollments</span>
+                     <span className="text-xs font-bold">{course.enrollmentsCount || 0} Active Enrollments</span>
                   </div>
                </div>
             </div>

@@ -2,6 +2,7 @@ export * from './button';
 export * from './input';
 export * from './select';
 export * from './modal';
+export * from './confirm-dialog';
 export * from './skeleton';
 export * from './badge';
 export * from './tabs';

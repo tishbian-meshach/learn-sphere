@@ -23,6 +23,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { Modal } from '@/components/ui/modal';
+import { ConfirmDialog } from '@/components/ui/confirm-dialog';
 import { CardSkeleton } from '@/components/ui/skeleton';
 import { EmptyState } from '@/components/ui/empty-state';
 import { DropdownMenu, DropdownMenuItem } from '@/components/ui/dropdown-menu';
@@ -62,6 +63,9 @@ export default function AdminCoursesPage() {
   const [showFilters, setShowFilters] = useState(false);
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
   const [newCourseTitle, setNewCourseTitle] = useState('');
+  const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
+  const [courseToDelete, setCourseToDelete] = useState<{id: string, title: string} | null>(null);
+  const [isDeleting, setIsDeleting] = useState(false);
 
   useEffect(() => {
     fetchCourses();
@@ -96,6 +100,38 @@ export default function AdminCoursesPage() {
       }
     } catch (error) {
       toast.error('Failed to create course');
+    }
+  };
+
+  const handleDeleteCourse = (courseId: string, courseTitle: string) => {
+    setCourseToDelete({ id: courseId, title: courseTitle });
+    setIsDeleteDialogOpen(true);
+  };
+
+  const confirmDelete = async () => {
+    if (!courseToDelete) return;
+
+    setIsDeleting(true);
+    try {
+      const res = await fetch(`/api/courses/${courseToDelete.id}`, {
+        method: 'DELETE',
+      });
+
+      if (res.ok) {
+        toast.success('Course deleted successfully');
+        // Remove from local state
+        setCourses(courses.filter(c => c.id !== courseToDelete.id));
+        setIsDeleteDialogOpen(false);
+        setCourseToDelete(null);
+      } else if (res.status === 403) {
+        toast.error('Unauthorized. You can only delete your own courses.');
+      } else {
+        toast.error('Failed to delete course');
+      }
+    } catch (error) {
+      toast.error('Failed to delete course');
+    } finally {
+      setIsDeleting(false);
     }
   };
 
@@ -262,7 +298,7 @@ export default function AdminCoursesPage() {
                     <DropdownMenuItem onClick={() => window.open(`/courses/${course.id}`, '_blank')}>
                       <ExternalLink className="w-4 h-4 mr-2" /> Preview
                     </DropdownMenuItem>
-                    <DropdownMenuItem className="text-destructive">
+                    <DropdownMenuItem className="text-destructive" onClick={() => handleDeleteCourse(course.id, course.title)}>
                       <Trash2 className="w-4 h-4 mr-2" /> Delete
                     </DropdownMenuItem>
                   </DropdownMenu>
@@ -366,6 +402,22 @@ export default function AdminCoursesPage() {
           autoFocus
         />
       </Modal>
+
+      {/* Delete Confirmation Dialog */}
+      <ConfirmDialog
+        isOpen={isDeleteDialogOpen}
+        onClose={() => {
+          setIsDeleteDialogOpen(false);
+          setCourseToDelete(null);
+        }}
+        onConfirm={confirmDelete}
+        title="Delete Course"
+        description={`Are you sure you want to delete "${courseToDelete?.title}"? This action cannot be undone and will remove all lessons, enrollments, and related data.`}
+        confirmText="Delete Course"
+        cancelText="Cancel"
+        variant="danger"
+        isLoading={isDeleting}
+      />
     </div>
   );
 }

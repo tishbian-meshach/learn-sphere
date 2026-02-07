@@ -24,8 +24,7 @@ import { cn, getNextBadgeProgress } from '@/lib/utils';
 
 const navItems = [
   { id: 'browse', label: 'Explore Catalog', icon: Compass, href: '/learner/courses' },
-  { id: 'my-courses', label: 'My Learning', icon: BookOpen, href: '/learner/my-courses' },
-];
+  { id: 'my-courses', label: 'My Learning', icon: BookOpen, href: '/learner/my-courses' }];
 
 export function LearnerSidebar() {
   const pathname = usePathname();
