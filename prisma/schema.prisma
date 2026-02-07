@@ -82,6 +82,8 @@ model Course {
   visibility    Visibility @default(EVERYONE)
   accessRule    AccessRule @default(OPEN)
   price         Decimal?   @db.Decimal(10, 2)
+  level         String?
+  subject       String?
   totalDuration Int        @default(0)
   viewsCount    Int        @default(0)
   createdAt     DateTime   @default(now())
@@ -119,6 +121,7 @@ model Lesson {
   duration      Int?
   documentUrl   String?
   imageUrl      String?
+  responsible   String?
   allowDownload Boolean    @default(false)
   orderIndex    Int        @default(0)
   createdAt     DateTime   @default(now())

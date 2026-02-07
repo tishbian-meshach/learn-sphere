@@ -87,6 +87,8 @@ export async function PUT(
       isPublished,
       visibility,
       accessRule,
+      level,
+      subject,
       price,
       tags,
     } = body;
@@ -108,6 +110,8 @@ export async function PUT(
         ...(isPublished !== undefined && { isPublished }),
         ...(visibility && { visibility }),
         ...(accessRule && { accessRule }),
+        ...(level !== undefined && { level }),
+        ...(subject !== undefined && { subject }),
         ...(price !== undefined && { price: price ? parseFloat(price) : null }),
         ...(tags?.length && {
           tags: {
