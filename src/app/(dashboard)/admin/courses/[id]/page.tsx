@@ -40,6 +40,7 @@ import {
   ListOrdered,
   Type,
   Link as LinkIcon,
+  ShieldAlert,
 } from 'lucide-react';
 import Link from 'next/link';
 import ReactMarkdown from 'react-markdown';
@@ -111,6 +112,8 @@ interface Course {
     email: string;
   };
   tags: { id: string; name: string }[];
+  editingUserId: string | null;
+  editingExpiresAt: string | null;
 }
 
 export default function CourseEditPage() {
@@ -138,6 +141,11 @@ export default function CourseEditPage() {
   const [inviteEmail, setInviteEmail] = useState('');
   const [selectedAttendee, setSelectedAttendee] = useState<Attendee | null>(null);
   const [isTimeBreakdownOpen, setIsTimeBreakdownOpen] = useState(false);
+  const [lockStatus, setLockStatus] = useState<{
+    isLocked: boolean;
+    editingByUser: { name: string; email: string; avatarUrl: string | null } | null;
+    expiresAt: string | null;
+  } | null>(null);
 
   // Delete State
   const [isDeleteLessonDialogOpen, setIsDeleteLessonDialogOpen] = useState(false);
@@ -206,6 +214,53 @@ export default function CourseEditPage() {
 
   useEffect(() => {
     fetchCourse();
+  }, [id]);
+
+  // Course Locking Heartbeat
+  useEffect(() => {
+    if (!id) return;
+
+    const acquireLock = async () => {
+      try {
+        const res = await fetch(`/api/courses/${id}/lock`, { method: 'POST' });
+        const data = await res.json();
+        
+        if (res.status === 423) {
+          setLockStatus({
+            isLocked: true,
+            editingByUser: data.editingByUser || { name: data.lockedBy || 'Another admin', email: '', avatarUrl: null },
+            expiresAt: null
+          });
+        } else if (res.ok) {
+          // Lock acquired/refreshed successfully
+          setLockStatus({ isLocked: false, editingByUser: null, expiresAt: data.expiresAt });
+        }
+      } catch (error) {
+        console.error('Failed to synchronize lock status:', error);
+      }
+    };
+
+    // Initial acquisition
+    acquireLock();
+
+    // Heartbeat every 20 seconds (lock expires in 30s)
+    const heartbeat = setInterval(acquireLock, 20000);
+
+    const releaseLock = async () => {
+      try {
+        await fetch(`/api/courses/${id}/lock`, { method: 'DELETE' });
+      } catch (e) {
+        // Silent failure for release
+      }
+    };
+
+    window.addEventListener('beforeunload', releaseLock);
+
+    return () => {
+      clearInterval(heartbeat);
+      window.removeEventListener('beforeunload', releaseLock);
+      releaseLock();
+    };
   }, [id]);
 
   const fetchCourse = async () => {
@@ -287,6 +342,15 @@ export default function CourseEditPage() {
         toast.success('Changes synchronized');
       } else if (res.status === 403) {
         toast.error('Unauthorized. You can only edit your own courses.');
+      } else if (res.status === 423) {
+        const data = await res.json();
+        toast.error(data.message || 'Someone is already in access', { duration: 5000 });
+        // Trigger lock status update
+        setLockStatus({
+          isLocked: true,
+          editingByUser: data.editingByUser || { name: 'Another administrator', email: '', avatarUrl: null },
+          expiresAt: null
+        });
       } else {
         toast.error('Synchronization failed');
       }
@@ -601,7 +665,53 @@ export default function CourseEditPage() {
   ];
 
   return (
-    <div className="max-w-screen-xl mx-auto">
+    <div className="max-w-screen-xl mx-auto relative">
+      {/* Locking Overlay */}
+      {lockStatus?.isLocked && (
+        <div className="fixed inset-0 z-[100] bg-white/60 backdrop-blur-[2px] flex items-center justify-center p-4">
+          <div className="max-w-md w-full bg-white border border-surface-200 shadow-[0_20px_50px_rgba(0,0,0,0.1)] rounded-2xl p-8 text-center animate-in fade-in zoom-in duration-300">
+            <div className="w-20 h-20 bg-amber-50 rounded-full flex items-center justify-center mx-auto mb-6">
+              <ShieldAlert className="w-10 h-10 text-amber-500" />
+            </div>
+            <h2 className="text-2xl font-black text-surface-900 mb-2 tracking-tight">Access Restricted</h2>
+            <p className="text-surface-600 mb-8 leading-relaxed text-sm">
+              <span className="font-bold text-surface-900">{lockStatus.editingByUser?.name || 'Another administrator'}</span> is currently modifying this course. 
+              To prevent conflicting changes, this course is temporarily locked.
+            </p>
+            <div className="bg-surface-50 rounded-xl p-4 flex items-center gap-4 mb-8 border border-surface-100">
+              <Avatar 
+                src={lockStatus.editingByUser?.avatarUrl || ''} 
+                name={lockStatus.editingByUser?.name || 'A'} 
+                size="sm" 
+                className="border-2 border-white shadow-sm" 
+              />
+              <div className="text-left">
+                <p className="text-xs font-bold text-surface-900">{lockStatus.editingByUser?.name}</p>
+                <p className="text-[10px] text-surface-400 uppercase tracking-widest font-extrabold">Active session</p>
+              </div>
+            </div>
+            <div className="space-y-3">
+              <Button 
+                variant="primary" 
+                className="w-full shadow-lg shadow-primary/20"
+                onClick={() => fetchCourse()}
+              >
+                Retry Connection
+              </Button>
+              <Button 
+                variant="outline" 
+                className="w-full"
+                onClick={() => router.push('/admin/courses')}
+              >
+                Back to Dashboard
+              </Button>
+            </div>
+            <p className="mt-6 text-[10px] text-surface-400 font-medium uppercase tracking-widest">
+              Please try again later.
+            </p>
+          </div>
+        </div>
+      )}
       {/* Header */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 mb-8">
         <div className="flex items-center gap-4">

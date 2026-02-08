@@ -70,6 +70,7 @@ model User {
   reviews        Review[]
   pointsLedger   PointsLedger[]
   payments       Payment[]
+  editingCourses Course[]         @relation("CourseEditor")
 
   @@map("users")
 }
@@ -100,8 +101,14 @@ model Course {
   reviews      Review[]
   payments     Payment[]
 
+  // Locking mechanism
+  editingUserId    String?
+  editingUser      User?     @relation("CourseEditor", fields: [editingUserId], references: [id])
+  editingExpiresAt DateTime?
+
   @@index([instructorId])
   @@index([isPublished])
+  @@index([editingUserId])
   @@map("courses")
 }
 

@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
-import { getCurrentUser } from '@/lib/auth-helpers';
+import { getCurrentUser, verifyCourseLock } from '@/lib/auth-helpers';
 
 export const dynamic = 'force-dynamic';
 
@@ -65,6 +65,10 @@ export async function POST(
     if (!currentUser) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
+
+    // Check course lock
+    const lockError = await verifyCourseLock(request, params.id);
+    if (lockError) return lockError;
 
     // Instructors can only add lessons to their own courses
     if (currentUser.role === 'INSTRUCTOR') {
@@ -163,6 +167,10 @@ export async function PATCH(
   try {
     const currentUser = await getCurrentUser(request);
     if (!currentUser) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+
+    // Check course lock
+    const lockError = await verifyCourseLock(request, params.id);
+    if (lockError) return lockError;
 
     if (currentUser.role === 'INSTRUCTOR') {
       const course = await prisma.course.findUnique({

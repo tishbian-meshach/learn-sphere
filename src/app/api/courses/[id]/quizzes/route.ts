@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
+import { verifyCourseLock } from '@/lib/auth-helpers';
 
 export const dynamic = 'force-dynamic';
 
@@ -9,6 +10,10 @@ export async function GET(
   { params }: { params: { id: string } }
 ) {
   try {
+    // If auto-repair is needed, it involves writes, so we should theoretically check lock.
+    // However, GET is usually expected to be safe. 
+    // Let's check lock only for POST which is an explicit creation.
+    
     // 1. Identify lessons of type QUIZ that are missing a backing Quiz record
     const lessonsMissingQuiz = await prisma.lesson.findMany({
       where: {
@@ -64,6 +69,10 @@ export async function POST(
   { params }: { params: { id: string } }
 ) {
   try {
+    // Check course lock
+    const lockError = await verifyCourseLock(request, params.id);
+    if (lockError) return lockError;
+
     const body = await request.json();
     const { title, orderIndex } = body;
 

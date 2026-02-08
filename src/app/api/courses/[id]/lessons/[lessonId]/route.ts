@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
+import { verifyCourseLock } from '@/lib/auth-helpers';
 
 export const dynamic = 'force-dynamic';
 
@@ -33,6 +34,10 @@ export async function PUT(
   { params }: { params: { id: string; lessonId: string } }
 ) {
   try {
+    // Check course lock
+    const lockError = await verifyCourseLock(request, params.id);
+    if (lockError) return lockError;
+
     const body = await request.json();
     const {
       title,
@@ -116,6 +121,10 @@ export async function DELETE(
   { params }: { params: { id: string; lessonId: string } }
 ) {
   try {
+    // Check course lock
+    const lockError = await verifyCourseLock(request, params.id);
+    if (lockError) return lockError;
+
     // Get lesson to subtract duration from course if needed
     const lesson = await prisma.lesson.findUnique({
       where: { id: params.lessonId },

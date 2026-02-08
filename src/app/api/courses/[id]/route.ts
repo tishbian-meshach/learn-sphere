@@ -42,6 +42,9 @@ export async function GET(
           },
           orderBy: { createdAt: 'desc' },
         },
+        editingUser: {
+          select: { id: true, name: true, email: true, avatarUrl: true }
+        },
         _count: {
           select: { enrollments: true },
         },
@@ -65,8 +68,8 @@ export async function GET(
 
     // Calculate average rating
     const avgRating =
-      course.reviews.length > 0
-        ? course.reviews.reduce((sum, r) => sum + r.rating, 0) / course.reviews.length
+      (course as any).reviews.length > 0
+        ? (course as any).reviews.reduce((sum: number, r: any) => sum + r.rating, 0) / (course as any).reviews.length
         : 0;
 
     // Fetch user status if logged in
@@ -84,11 +87,25 @@ export async function GET(
       userStatus = enrollment?.status || null;
     }
 
+    // Check lock status
+    const courseAny = course as any;
+    const isLocked = !!(
+      courseAny.editingUserId &&
+      courseAny.editingUserId !== currentUser?.id &&
+      courseAny.editingExpiresAt &&
+      courseAny.editingExpiresAt > new Date()
+    );
+
     return NextResponse.json({
       ...course,
       averageRating: Math.round(avgRating * 10) / 10,
-      enrollmentsCount: course._count.enrollments,
+      enrollmentsCount: courseAny._count?.enrollments || 0,
       userStatus,
+      lockStatus: {
+        isLocked,
+        editingByUser: isLocked ? courseAny.editingUser : null,
+        expiresAt: courseAny.editingExpiresAt,
+      },
       _count: undefined,
     });
   } catch (error) {
@@ -110,23 +127,40 @@ export async function PUT(
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
+    // Check course existence and lock status
+    const existingCourse = await prisma.course.findUnique({
+      where: { id: params.id },
+      select: {
+        instructorId: true,
+        editingUserId: true,
+        editingExpiresAt: true,
+      },
+    });
+
+    if (!existingCourse) {
+      return NextResponse.json({ error: 'Course not found' }, { status: 404 });
+    }
+
     // Check ownership for instructors
-    if (currentUser.role === 'INSTRUCTOR') {
-      const course = await prisma.course.findUnique({
-        where: { id: params.id },
-        select: { instructorId: true },
-      });
+    if (currentUser.role === 'INSTRUCTOR' && existingCourse.instructorId !== currentUser.id) {
+      return NextResponse.json(
+        { error: 'Unauthorized. You can only edit your own courses.' },
+        { status: 403 }
+      );
+    }
 
-      if (!course) {
-        return NextResponse.json({ error: 'Course not found' }, { status: 404 });
-      }
-
-      if (course.instructorId !== currentUser.id) {
-        return NextResponse.json(
-          { error: 'Unauthorized. You can only edit your own courses.' },
-          { status: 403 }
-        );
-      }
+    // Check lock status
+    const now = new Date();
+    if (
+      existingCourse.editingUserId &&
+      existingCourse.editingUserId !== currentUser.id &&
+      existingCourse.editingExpiresAt &&
+      existingCourse.editingExpiresAt > now
+    ) {
+      return NextResponse.json({
+        error: 'Someone is already in access',
+        message: 'This course is currently being edited by another user. Your changes cannot be saved at this time.'
+      }, { status: 423 });
     }
 
     const body = await request.json();
